@@ -1,0 +1,67 @@
+{
+  "name": "google-sheets-dashboard-v3",
+  "version": "3.0.0",
+  "description": "Modularní dashboard pro zobrazování dat z Google Sheets s uživatelskou konfigurací",
+  "main": "index.html",
+  "keywords": [
+    "dashboard",
+    "google-sheets",
+    "data-visualization",
+    "charts",
+    "widgets",
+    "modular",
+    "responsive"
+  ],
+  "author": "Dashboard System",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/google-sheets-dashboard-v3.git"
+  },
+  "homepage": "https://username.github.io/google-sheets-dashboard-v3",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000 --bind 127.0.0.1",
+    "build": "echo 'Static site - no build required'",
+    "test": "echo 'Running basic tests...' && node test/basic-tests.js",
+    "lint": "echo 'Linting JavaScript...' && npx eslint assets/js/",
+    "format": "echo 'Formatting code...' && npx prettier --write assets/js/ assets/css/",
+    "deploy": "echo 'Deployment via GitHub Pages'",
+    "validate": "echo 'Validating configuration...' && node scripts/validate-config.js"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "http-server": "^14.0.0"
+  },
+  "dependencies": {},
+  "browserslist": [
+    "defaults",
+    "not IE 11"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "config": {
+    "version": "3.0.0",
+    "buildDate": "2024-12-19",
+    "features": [
+      "modular-architecture",
+      "user-configurable-widgets",
+      "dynamic-data-sources",
+      "responsive-design",
+      "dark-light-theme",
+      "export-import-config",
+      "detail-modal",
+      "aggregations",
+      "filters"
+    ]
+  },
+  "files": [
+    "index.html",
+    "assets/",
+    "gas-backend-v3.js",
+    "README.md",
+    "package.json"
+  ]
+}

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modularní Google Sheets Dashboard</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.js"></script>
+    <!-- Custom CSS -->
+    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/widgets.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Preloader -->
+    <div id="preloader" class="preloader">
+        <div class="spinner-border text-light" role="status"></div>
+        <div class="mt-3">
+            <h4>Načítání Dashboard...</h4>
+            <p>Inicializace modularního systému...</p>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-pie me-2"></i>
+                Modularní Dashboard
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown me-3">
+                    <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-cog me-1"></i> Konfigurace
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" id="configDataSources"><i class="fas fa-database me-2"></i>Zdroje dat</a></li>
+                        <li><a class="dropdown-item" href="#" id="configWidgets"><i class="fas fa-th me-2"></i>Widgety</a></li>
+                        <li><a class="dropdown-item" href="#" id="configLayout"><i class="fas fa-grip-vertical me-2"></i>Layout</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="exportConfig"><i class="fas fa-download me-2"></i>Export konfigurace</a></li>
+                        <li><a class="dropdown-item" href="#" id="importConfig"><i class="fas fa-upload me-2"></i>Import konfigurace</a></li>
+                    </ul>
+                </div>
+                
+                <button class="btn btn-success me-2" id="loadDataBtn" title="Načíst aktuální data">
+                    <i class="fas fa-sync-alt me-1" id="loadDataIcon"></i>
+                    Načíst data
+                </button>
+                
+                <button class="btn btn-outline-light" id="themeToggle" title="Přepnout téma">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid dashboard-content">
+        <!-- Loading Indicator -->
+        <div id="loadingOverlay" class="loading-overlay d-none">
+            <div class="loading-content">
+                <div class="spinner-border text-primary" role="status"></div>
+                <h5 class="mt-3">Načítám data...</h5>
+                <div id="loadingProgress" class="progress mt-3">
+                    <div class="progress-bar" role="progressbar"></div>
+                </div>
+                <p id="loadingStatus" class="mt-2 text-muted">Připojuji se k datovým zdrojům...</p>
+            </div>
+        </div>
+
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1><i class="fas fa-tachometer-alt me-2"></i>Dashboard přehled</h1>
+                    <p class="text-muted mb-0">Modularní systém pro zobrazování dat z Google Sheets</p>
+                </div>
+                <div class="col-auto">
+                    <div class="d-flex align-items-center text-muted">
+                        <i class="fas fa-clock me-2"></i>
+                        <small>Poslední aktualizace: <span id="lastUpdateTime">--:--</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div id="dashboardGrid" class="dashboard-grid">
+            <!-- Widgety se zde vkládají dynamicky -->
+            <div class="text-center py-5" id="emptyDashboard">
+                <i class="fas fa-puzzle-piece fa-3x text-muted mb-3"></i>
+                <h4>Žádné widgety nejsou nakonfigurovány</h4>
+                <p class="text-muted">Klikněte na "Konfigurace" → "Widgety" pro přidání prvního widgetu</p>
+                <button class="btn btn-primary" onclick="ConfigManager.openWidgetsConfig()">
+                    <i class="fas fa-plus me-2"></i>Přidat widget
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Source Configuration Modal -->
+    <div class="modal fade" id="dataSourceModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-database me-2"></i>Konfigurace zdrojů dat</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Dostupné zdroje</h6>
+                            <div id="dataSourcesList" class="list-group">
+                                <!-- Dynamicky generovaný seznam -->
+                            </div>
+                            <button class="btn btn-outline-primary btn-sm mt-2" id="addDataSourceBtn">
+                                <i class="fas fa-plus me-1"></i>Přidat zdroj
+                            </button>
+                        </div>
+                        <div class="col-md-8">
+                            <div id="dataSourceConfig">
+                                <div class="text-center py-4">
+                                    <i class="fas fa-arrow-left me-2"></i>
+                                    <span class="text-muted">Vyberte zdroj dat pro konfiguraci</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="button" class="btn btn-primary" id="saveDataSourceBtn">Uložit změny</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Widget Configuration Modal -->
+    <div class="modal fade" id="widgetModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-th me-2"></i>Konfigurace widgetů</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6>Aktivní widgety</h6>
+                            <div id="activeWidgetsList" class="sortable-widgets">
+                                <!-- Dynamicky generovaný seznam -->
+                            </div>
+                            <hr>
+                            <h6>Dostupné typy</h6>
+                            <div id="widgetTypesList" class="widget-types">
+                                <!-- Typy widgetů -->
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div id="widgetConfigPanel">
+                                <div class="text-center py-4">
+                                    <i class="fas fa-arrow-left me-2"></i>
+                                    <span class="text-muted">Vyberte widget pro konfiguraci</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="button" class="btn btn-primary" id="saveWidgetBtn">Uložit změny</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal fade" id="detailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detailModalTitle">
+                        <i class="fas fa-search me-2"></i>Detail
+                    </h5>
+                    <div class="modal-header-actions">
+                        <button class="btn btn-sm btn-outline-primary me-2" id="exportDetailBtn">
+                            <i class="fas fa-download me-1"></i>Export
+                        </button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div id="detailContent">
+                        <!-- Detailní obsah se načítá dynamicky -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <!-- Toasty se vkládají dynamicky -->
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    
+    <!-- Core Application Scripts -->
+    <script src="assets/js/dashboard-core.js"></script>
+    <script src="assets/js/data-manager.js"></script>
+    <script src="assets/js/config-manager.js"></script>
+    <script src="assets/js/widget-factory.js"></script>
+    <script src="assets/js/detail-modal.js"></script>
+    
+    <!-- Initialization Script -->
+    <script>
+        // Initialize dashboard when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            DashboardCore.init();
+        });
+    </script>
+</body>
+</html>
