@@ -95,7 +95,7 @@
                     
                     <li class="nav-item">
                         <button class="btn btn-outline-light btn-sm me-2" id="refreshBtn" title="Obnovit data">
-                            <i class="fas fa-sync-alt me-1"></i>Obnovit
+                            <i class="fas fa-sync-alt me-1" id="refreshIcon"></i>Obnovit
                         </button>
                     </li>
                     
@@ -180,9 +180,6 @@
                                 <i class="fas fa-chart-line me-2"></i>Měsíční trendy
                             </h6>
                             <small class="text-muted">Prodeje, uživatelé a příjmy</small>
-                            <button class="btn btn-sm btn-outline-primary" id="chartFullscreen">
-                                <i class="fas fa-expand"></i>
-                            </button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -378,7 +375,7 @@
         </div>
     </div>
 
-    <!-- Success Toast -->
+    <!-- Toast Container -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
         <div id="successToast" class="toast" role="alert">
             <div class="toast-header bg-success text-white">
@@ -395,41 +392,846 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Original Dashboard JS -->
-    <script src="assets/js/dashboard.js"></script>
-    
-    <!-- Debug Info -->
+    <!-- Embedded Dashboard JavaScript -->
     <script>
-        console.log('🚀 Index.html načten - používá původní dashboard.js');
-        console.log('📋 Dostupné funkce:');
-        console.log('   - Obnovit data: #refreshBtn');
-        console.log('   - Konfigurace: #configBtn nebo Ctrl+Alt+C');
-        console.log('   - Přepnout téma: #themeToggle');
-        console.log('   - Debug info: window.debugDashboard');
+        /**
+         * Google Sheets Dashboard - EMBEDDED VERSION
+         * Verze: 3.0 - Embedded v index.html
+         */
         
-        // Kontrola po načtení
-        window.addEventListener('load', function() {
-            setTimeout(() => {
-                if (typeof window.dashboard !== 'undefined') {
-                    console.log('✅ Dashboard inicializován úspěšně');
-                    console.log('🎛️ Dashboard instance:', window.dashboard);
-                    console.log('🐛 Debug commands:', window.debugDashboard);
-                } else {
-                    console.error('❌ Dashboard se nepodařilo inicializovat');
-                    console.log('🔍 Zkontrolujte, zda existuje assets/js/dashboard.js');
-                }
-                
-                // Kontrola tlačítek
-                const buttons = ['refreshBtn', 'configBtn', 'themeToggle'];
-                buttons.forEach(btnId => {
-                    const btn = document.getElementById(btnId);
-                    if (btn) {
-                        console.log(`✅ Tlačítko #${btnId} nalezeno`);
+        class GoogleSheetsDashboard {
+            constructor() {
+                // Konfigurace
+                this.config = {
+                    gasUrl: '',
+                    refreshInterval: 30,
+                    enableNotifications: true,
+                    maxRetries: 3,
+                    retryDelay: 5000
+                };
+
+                // Stav aplikace
+                this.charts = {};
+                this.data = [];
+                this.refreshTimer = null;
+                this.retryCount = 0;
+                this.isLoading = false;
+
+                // Pagination
+                this.currentPage = 1;
+                this.itemsPerPage = 10;
+                this.filteredData = [];
+
+                // Event binding
+                this.init();
+            }
+
+            /**
+             * Inicializace aplikace
+             */
+            async init() {
+                console.log('🚀 Inicializace Google Sheets Dashboard v3.0 - EMBEDDED...');
+
+                try {
+                    // Načti konfiguraci
+                    await this.loadConfig();
+
+                    // Nastav UI event listenery
+                    this.setupEventListeners();
+
+                    // Nastav tématu
+                    this.loadTheme();
+
+                    // Skrytí preloaderu
+                    this.hidePreloader();
+
+                    // Kontrola konfigurace a načtení dat
+                    if (!this.config.gasUrl) {
+                        console.log('⚙️ Konfigurace chybí - zobrazuji config modal');
+                        this.showConfigModal();
                     } else {
-                        console.error(`❌ Tlačítko #${btnId} nenalezeno`);
+                        console.log('✅ Konfigurace nalezena - načítám data');
+                        await this.loadAllData();
+                        this.setupAutoRefresh();
+                    }
+
+                    console.log('✅ Dashboard inicializován úspěšně');
+
+                } catch (error) {
+                    console.error('❌ Chyba při inicializaci:', error);
+                    this.showError('Chyba při inicializaci: ' + error.message);
+                }
+            }
+
+            /**
+             * Nastavení event listenerů
+             */
+            setupEventListeners() {
+                // Refresh button
+                const refreshBtn = document.getElementById('refreshBtn');
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', () => this.refreshData());
+                }
+
+                // Config button
+                const configBtn = document.getElementById('configBtn');
+                if (configBtn) {
+                    configBtn.addEventListener('click', () => this.showConfigModal());
+                }
+
+                // Theme toggle
+                const themeToggle = document.getElementById('themeToggle');
+                if (themeToggle) {
+                    themeToggle.addEventListener('click', () => this.toggleTheme());
+                }
+
+                // Config modal save
+                const saveConfigBtn = document.getElementById('saveConfig');
+                if (saveConfigBtn) {
+                    saveConfigBtn.addEventListener('click', () => this.saveConfigFromModal());
+                }
+
+                // Retry button
+                const retryBtn = document.getElementById('retryBtn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', () => this.retryLoad());
+                }
+
+                // Search input
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('keyup', (e) => this.filterData(e.target.value));
+                }
+
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.altKey && e.code === 'KeyC') {
+                        e.preventDefault();
+                        this.showConfigModal();
+                    }
+                    if (e.key === 'F5') {
+                        e.preventDefault();
+                        this.refreshData();
                     }
                 });
-            }, 2000);
+            }
+
+            /**
+             * Načítání konfigurace
+             */
+            async loadConfig() {
+                try {
+                    const config = localStorage.getItem('dashboardConfig');
+                    if (config) {
+                        this.config = { ...this.config, ...JSON.parse(config) };
+                        console.log('⚙️ Konfigurace načtena z localStorage');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Chyba při načítání konfigurace:', error);
+                }
+            }
+
+            /**
+             * Uložení konfigurace
+             */
+            saveConfig() {
+                try {
+                    localStorage.setItem('dashboardConfig', JSON.stringify(this.config));
+                    console.log('💾 Konfigurace uložena');
+                } catch (error) {
+                    console.error('❌ Chyba při ukládání konfigurace:', error);
+                }
+            }
+
+            /**
+             * Zobrazení konfiguračního modálu
+             */
+            showConfigModal() {
+                const modal = new bootstrap.Modal(document.getElementById('configModal'));
+                
+                // Načti aktuální hodnoty do formuláře
+                document.getElementById('gasUrl').value = this.config.gasUrl || '';
+                document.getElementById('refreshInterval').value = this.config.refreshInterval || 30;
+                document.getElementById('enableNotifications').checked = this.config.enableNotifications !== false;
+                
+                modal.show();
+            }
+
+            /**
+             * Uložení konfigurace z modálu
+             */
+            async saveConfigFromModal() {
+                const gasUrl = document.getElementById('gasUrl').value.trim();
+                const refreshInterval = parseInt(document.getElementById('refreshInterval').value) || 30;
+                const enableNotifications = document.getElementById('enableNotifications').checked;
+
+                if (!gasUrl) {
+                    this.showToast('Vyplňte URL Google Apps Script', 'warning');
+                    return;
+                }
+
+                // Aktualizuj konfiguraci
+                this.config.gasUrl = gasUrl;
+                this.config.refreshInterval = refreshInterval;
+                this.config.enableNotifications = enableNotifications;
+
+                // Ulož
+                this.saveConfig();
+
+                // Zavři modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
+                modal.hide();
+
+                // Načti data
+                await this.loadAllData();
+                this.setupAutoRefresh();
+
+                this.showToast('Konfigurace byla uložena', 'success');
+            }
+
+            /**
+             * Načtení všech dat
+             */
+            async loadAllData() {
+                if (this.isLoading) {
+                    console.log('⏳ Načítání již probíhá...');
+                    return;
+                }
+
+                this.isLoading = true;
+                this.showLoading();
+
+                try {
+                    console.log('📡 Načítám data z Google Sheets...');
+                    
+                    const response = await fetch(this.config.gasUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ action: 'dashboard' }),
+                        mode: 'cors'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const text = await response.text();
+                    let result;
+
+                    try {
+                        result = JSON.parse(text);
+                    } catch (parseError) {
+                        console.error('❌ Chyba parsování JSON:', parseError);
+                        throw new Error('Neplatná JSON odpověď z Google Apps Script');
+                    }
+
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
+
+                    this.data = result.data || [];
+                    console.log(`✅ Načteno ${this.data.length} záznamů`);
+
+                    // Aktualizuj UI
+                    this.updateMetrics();
+                    this.updateCharts();
+                    this.updateTable();
+                    this.updateTimestamp();
+
+                    this.hideLoading();
+                    this.hideError();
+
+                    if (this.config.enableNotifications) {
+                        this.showToast(`Úspěšně načteno ${this.data.length} záznamů`, 'success');
+                    }
+
+                    this.retryCount = 0;
+
+                } catch (error) {
+                    console.error('❌ Chyba při načítání dat:', error);
+                    this.handleLoadError(error);
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+
+            /**
+             * Refresh dat
+             */
+            async refreshData() {
+                const refreshIcon = document.getElementById('refreshIcon');
+                if (refreshIcon) {
+                    refreshIcon.classList.add('fa-spin');
+                }
+
+                await this.loadAllData();
+
+                if (refreshIcon) {
+                    setTimeout(() => refreshIcon.classList.remove('fa-spin'), 1000);
+                }
+            }
+
+            /**
+             * Aktualizace metrik
+             */
+            updateMetrics() {
+                const container = document.getElementById('metricsCards');
+                if (!container) return;
+
+                if (!this.data || this.data.length === 0) {
+                    container.innerHTML = '<div class="col-12"><div class="alert alert-info">Žádná data k zobrazení</div></div>';
+                    return;
+                }
+
+                // Mock metriky pro ukázku
+                const metrics = [
+                    {
+                        title: 'Celkem záznamů',
+                        value: this.data.length.toLocaleString('cs-CZ'),
+                        icon: 'fa-database',
+                        color: 'primary',
+                        change: '+12.5%'
+                    },
+                    {
+                        title: 'Průměr hodnot',
+                        value: Math.floor(Math.random() * 1000).toLocaleString('cs-CZ'),
+                        icon: 'fa-chart-line',
+                        color: 'success',
+                        change: '+5.2%'
+                    },
+                    {
+                        title: 'Aktivní položky',
+                        value: Math.floor(this.data.length * 0.8).toLocaleString('cs-CZ'),
+                        icon: 'fa-check-circle',
+                        color: 'info',
+                        change: '+2.1%'
+                    },
+                    {
+                        title: 'Nové tento měsíc',
+                        value: Math.floor(Math.random() * 100).toLocaleString('cs-CZ'),
+                        icon: 'fa-plus',
+                        color: 'warning',
+                        change: '+18.3%'
+                    }
+                ];
+
+                let html = '';
+                metrics.forEach(metric => {
+                    html += `
+                        <div class="col-lg-3 col-md-6 mb-3">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="bg-${metric.color} text-white rounded p-3">
+                                                <i class="fas ${metric.icon} fa-2x"></i>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="text-muted mb-1">${metric.title}</h6>
+                                            <h3 class="mb-1">${metric.value}</h3>
+                                            <small class="text-success">
+                                                <i class="fas fa-arrow-up me-1"></i>${metric.change}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            /**
+             * Aktualizace grafů
+             */
+            updateCharts() {
+                if (!window.Chart || !this.data || this.data.length === 0) return;
+
+                // Měsíční trend graf
+                this.createMonthlyChart();
+                
+                // Kategorie graf
+                this.createCategoryChart();
+                
+                // Výkonnostní graf
+                this.createPerformanceChart();
+                
+                // Růstový graf
+                this.createGrowthChart();
+            }
+
+            createMonthlyChart() {
+                const canvas = document.getElementById('monthlyChart');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                if (this.charts.monthly) {
+                    this.charts.monthly.destroy();
+                }
+
+                // Mock data
+                const labels = ['Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen'];
+                const data1 = Array.from({length: 6}, () => Math.floor(Math.random() * 1000));
+                const data2 = Array.from({length: 6}, () => Math.floor(Math.random() * 800));
+
+                this.charts.monthly = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Prodeje',
+                            data: data1,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            tension: 0.4
+                        }, {
+                            label: 'Návštěvníci',
+                            data: data2,
+                            borderColor: '#198754',
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            createCategoryChart() {
+                const canvas = document.getElementById('categoryChart');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                if (this.charts.category) {
+                    this.charts.category.destroy();
+                }
+
+                this.charts.category = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Kategorie A', 'Kategorie B', 'Kategorie C', 'Kategorie D'],
+                        datasets: [{
+                            data: [35, 25, 25, 15],
+                            backgroundColor: [
+                                '#0d6efd',
+                                '#198754',
+                                '#ffc107',
+                                '#dc3545'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+
+            createPerformanceChart() {
+                const canvas = document.getElementById('performanceChart');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                if (this.charts.performance) {
+                    this.charts.performance.destroy();
+                }
+
+                const data = Array.from({length: 7}, () => Math.floor(Math.random() * 100));
+
+                this.charts.performance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'],
+                        datasets: [{
+                            label: 'Výkon %',
+                            data: data,
+                            backgroundColor: '#0d6efd'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        }
+                    }
+                });
+            }
+
+            createGrowthChart() {
+                const canvas = document.getElementById('growthChart');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                if (this.charts.growth) {
+                    this.charts.growth.destroy();
+                }
+
+                const data = Array.from({length: 12}, () => Math.floor(Math.random() * 50) - 25);
+
+                this.charts.growth = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Led', 'Úno', 'Bře', 'Dub', 'Kvě', 'Čer', 'Čec', 'Srp', 'Zář', 'Říj', 'Lis', 'Pro'],
+                        datasets: [{
+                            label: 'Růst %',
+                            data: data,
+                            backgroundColor: data.map(d => d >= 0 ? '#198754' : '#dc3545')
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            /**
+             * Aktualizace tabulky
+             */
+            updateTable() {
+                if (!this.data || this.data.length === 0) {
+                    this.showEmptyTable();
+                    return;
+                }
+
+                this.filteredData = [...this.data];
+                this.renderTable();
+                this.updateTableInfo();
+            }
+
+            showEmptyTable() {
+                const tbody = document.getElementById('tableBody');
+                const thead = document.getElementById('tableHeader');
+                const info = document.getElementById('tableInfo');
+
+                if (thead) thead.innerHTML = '';
+                if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">Žádná data k zobrazení</td></tr>';
+                if (info) info.textContent = 'Žádná data';
+            }
+
+            renderTable() {
+                if (!this.filteredData || this.filteredData.length === 0) {
+                    this.showEmptyTable();
+                    return;
+                }
+
+                const thead = document.getElementById('tableHeader');
+                const tbody = document.getElementById('tableBody');
+
+                if (!thead || !tbody) return;
+
+                // Hlavičky
+                const columns = Object.keys(this.filteredData[0]);
+                thead.innerHTML = columns.map(col => `<th>${col}</th>`).join('');
+
+                // Stránkování
+                const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+                const endIndex = startIndex + this.itemsPerPage;
+                const pageData = this.filteredData.slice(startIndex, endIndex);
+
+                // Řádky
+                tbody.innerHTML = pageData.map(row => {
+                    const cells = columns.map(col => {
+                        const value = row[col];
+                        return `<td>${this.formatCellValue(value)}</td>`;
+                    }).join('');
+                    return `<tr>${cells}</tr>`;
+                }).join('');
+
+                this.updatePagination();
+            }
+
+            formatCellValue(value) {
+                if (value === null || value === undefined) return '-';
+                if (typeof value === 'number') {
+                    return value.toLocaleString('cs-CZ');
+                }
+                return String(value);
+            }
+
+            updateTableInfo() {
+                const info = document.getElementById('tableInfo');
+                const footerInfo = document.getElementById('tableFooterInfo');
+
+                if (info) {
+                    info.textContent = `${this.filteredData.length} záznamů`;
+                    info.className = 'badge bg-primary';
+                }
+
+                if (footerInfo) {
+                    const start = (this.currentPage - 1) * this.itemsPerPage + 1;
+                    const end = Math.min(this.currentPage * this.itemsPerPage, this.filteredData.length);
+                    footerInfo.textContent = `Zobrazeno ${start}-${end} z ${this.filteredData.length} záznamů`;
+                }
+            }
+
+            updatePagination() {
+                const container = document.getElementById('tablePagination');
+                if (!container) return;
+
+                const totalPages = Math.ceil(this.filteredData.length / this.itemsPerPage);
+
+                if (totalPages <= 1) {
+                    container.innerHTML = '';
+                    return;
+                }
+
+                let html = '';
+
+                // Previous
+                html += `<li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="dashboard.goToPage(${this.currentPage - 1}); return false;">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>`;
+
+                // Pages
+                for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+                    html += `<li class="page-item ${i === this.currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="dashboard.goToPage(${i}); return false;">${i}</a>
+                    </li>`;
+                }
+
+                // Next
+                html += `<li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="dashboard.goToPage(${this.currentPage + 1}); return false;">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>`;
+
+                container.innerHTML = html;
+            }
+
+            goToPage(page) {
+                const totalPages = Math.ceil(this.filteredData.length / this.itemsPerPage);
+                if (page < 1 || page > totalPages) return;
+
+                this.currentPage = page;
+                this.renderTable();
+            }
+
+            /**
+             * Filtrování dat
+             */
+            filterData(query) {
+                if (!this.data) return;
+
+                if (!query || query.trim() === '') {
+                    this.filteredData = [...this.data];
+                } else {
+                    const searchTerm = query.toLowerCase().trim();
+                    this.filteredData = this.data.filter(row => {
+                        return Object.values(row).some(value => 
+                            String(value).toLowerCase().includes(searchTerm)
+                        );
+                    });
+                }
+
+                this.currentPage = 1;
+                this.renderTable();
+                this.updateTableInfo();
+            }
+
+            /**
+             * Aktualizace časového razítka
+             */
+            updateTimestamp() {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('cs-CZ');
+                
+                const updateTimeEl = document.getElementById('updateTime');
+                const lastUpdateEl = document.getElementById('lastUpdate');
+
+                if (updateTimeEl) updateTimeEl.textContent = timeStr;
+                if (lastUpdateEl) lastUpdateEl.textContent = timeStr;
+            }
+
+            /**
+             * Automatické obnovování
+             */
+            setupAutoRefresh() {
+                if (this.refreshTimer) {
+                    clearInterval(this.refreshTimer);
+                }
+
+                if (this.config.refreshInterval && this.config.refreshInterval > 0) {
+                    this.refreshTimer = setInterval(() => {
+                        console.log('🔄 Automatické obnovení dat...');
+                        this.loadAllData();
+                    }, this.config.refreshInterval * 60 * 1000);
+                }
+            }
+
+            /**
+             * UI Helper metody
+             */
+            showLoading() {
+                const indicator = document.getElementById('loadingIndicator');
+                if (indicator) {
+                    indicator.classList.remove('d-none');
+                }
+            }
+
+            hideLoading() {
+                const indicator = document.getElementById('loadingIndicator');
+                if (indicator) {
+                    indicator.classList.add('d-none');
+                }
+            }
+
+            showError(message) {
+                const errorDisplay = document.getElementById('errorDisplay');
+                const errorMessage = document.getElementById('errorMessage');
+
+                if (errorDisplay && errorMessage) {
+                    errorMessage.textContent = message;
+                    errorDisplay.classList.remove('d-none');
+                }
+            }
+
+            hideError() {
+                const errorDisplay = document.getElementById('errorDisplay');
+                if (errorDisplay) {
+                    errorDisplay.classList.add('d-none');
+                }
+            }
+
+            hidePreloader() {
+                const preloader = document.getElementById('preloader');
+                if (preloader) {
+                    setTimeout(() => {
+                        preloader.style.opacity = '0';
+                        setTimeout(() => preloader.remove(), 300);
+                    }, 1000);
+                }
+            }
+
+            showToast(message, type = 'info') {
+                const toast = document.getElementById('successToast');
+                const messageEl = document.getElementById('successMessage');
+
+                if (toast && messageEl) {
+                    messageEl.textContent = message;
+                    
+                    const bsToast = new bootstrap.Toast(toast);
+                    bsToast.show();
+                }
+            }
+
+            /**
+             * Error handling
+             */
+            handleLoadError(error) {
+                this.hideLoading();
+                
+                if (this.retryCount < this.config.maxRetries) {
+                    this.retryCount++;
+                    console.log(`🔄 Pokus ${this.retryCount}/${this.config.maxRetries} za ${this.config.retryDelay/1000}s...`);
+                    
+                    setTimeout(() => {
+                        this.loadAllData();
+                    }, this.config.retryDelay);
+                } else {
+                    this.showError(`Nepodařilo se načíst data: ${error.message}`);
+                }
+            }
+
+            retryLoad() {
+                this.retryCount = 0;
+                this.hideError();
+                this.loadAllData();
+            }
+
+            /**
+             * Theme management
+             */
+            loadTheme() {
+                const theme = localStorage.getItem('dashboardTheme') || 'light';
+                document.body.setAttribute('data-theme', theme);
+                this.updateThemeIcon(theme);
+            }
+
+            toggleTheme() {
+                const currentTheme = document.body.getAttribute('data-theme') || 'light';
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                
+                document.body.setAttribute('data-theme', newTheme);
+                localStorage.setItem('dashboardTheme', newTheme);
+                this.updateThemeIcon(newTheme);
+            }
+
+            updateThemeIcon(theme) {
+                const icon = document.querySelector('#themeToggle i');
+                if (icon) {
+                    icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+                }
+            }
+        }
+
+        // Spuštění dashboardu
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 DOM načten - spouštím embedded dashboard...');
+            
+            try {
+                window.dashboard = new GoogleSheetsDashboard();
+                console.log('✅ Embedded dashboard spuštěn úspěšně');
+                
+                // Debug objekty
+                window.debugDashboard = {
+                    reload: () => window.dashboard.loadAllData(),
+                    config: () => window.dashboard.showConfigModal(),
+                    data: () => window.dashboard.data,
+                    charts: () => window.dashboard.charts
+                };
+                
+            } catch (error) {
+                console.error('❌ Kritická chyba při spuštění embedded dashboardu:', error);
+            }
         });
     </script>
 </body>
