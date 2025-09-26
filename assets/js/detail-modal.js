@@ -1,5 +1,5 @@
 /**
- * Detail Modal - Zobrazení detailu widgetu (KOMPLETNĚ FUNKČNÍ)
+ * Detail Modal - Zobrazení detailu widgetu (FUNKČNÍ VERZE)
  * Verze: 3.0 - Modularní architektura
  * Autor: Dashboard System
  */
@@ -19,7 +19,7 @@ class DetailModal {
     }
 
     /**
-     * Vytvoření modálního okna pokud neexistuje
+     * Vytvoření modálního okna
      */
     createModalElement() {
         // Kontrola, zda už modal neexistuje
@@ -29,14 +29,14 @@ class DetailModal {
         }
 
         const modalHtml = `
-            <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+            <div class="modal fade" id="detailModal" tabindex="-1">
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="detailModalLabel">
                                 <i class="fas fa-chart-line me-2"></i>Detail widgetu
                             </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
                             <div class="row">
@@ -105,24 +105,20 @@ class DetailModal {
      * Nastavení event listenerů
      */
     setupEventListeners() {
-        // Použij setTimeout pro opožděné bindování
+        // Opožděné bindování
         setTimeout(() => {
-            // Edit button
             document.getElementById('editWidgetBtn')?.addEventListener('click', () => {
                 this.editCurrentWidget();
             });
 
-            // Refresh button
             document.getElementById('refreshWidgetBtn')?.addEventListener('click', () => {
                 this.refreshCurrentWidget();
             });
 
-            // Export button
             document.getElementById('exportWidgetBtn')?.addEventListener('click', () => {
                 this.exportCurrentWidget();
             });
 
-            // Delete button
             document.getElementById('deleteWidgetBtn')?.addEventListener('click', () => {
                 this.deleteCurrentWidget();
             });
@@ -231,9 +227,6 @@ class DetailModal {
                 case 'bar-chart':
                     this.renderChartDetail(contentDiv, processedData, 'bar');
                     break;
-                case 'pie-chart':
-                    this.renderChartDetail(contentDiv, processedData, 'pie');
-                    break;
                 case 'data-table':
                     this.renderTableDetail(contentDiv, processedData);
                     break;
@@ -291,13 +284,6 @@ class DetailModal {
                     }
                 </div>
             </div>
-
-            ${this.currentConfig.description ? `
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Popis:</label>
-                    <div class="text-muted">${this.currentConfig.description}</div>
-                </div>
-            ` : ''}
         `;
     }
 
@@ -310,7 +296,17 @@ class DetailModal {
         
         if (Array.isArray(data)) {
             count = data.length;
-            value = Math.floor(Math.random() * 100000); // Mock hodnota
+            // Mock hodnota pro ukázku
+            switch (this.currentConfig.aggregation || 'count') {
+                case 'count':
+                    value = count;
+                    break;
+                case 'sum':
+                    value = Math.floor(Math.random() * 100000);
+                    break;
+                default:
+                    value = count;
+            }
         }
 
         container.innerHTML = `
@@ -407,6 +403,18 @@ class DetailModal {
                     <div style="height: 400px;">
                         <canvas id="detailChart_${this.currentWidgetId}"></canvas>
                     </div>
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Statistiky</h6>
+                                <p class="text-muted">Počet datových bodů: ${Array.isArray(data) ? data.length : 0}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Typ grafu</h6>
+                                <p class="text-muted">${chartType === 'line' ? 'Čárový graf' : 'Sloupcový graf'}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -428,7 +436,7 @@ class DetailModal {
                             label: this.currentConfig.title,
                             data: mockData,
                             borderColor: 'rgb(75, 192, 192)',
-                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            backgroundColor: chartType === 'line' ? 'rgba(75, 192, 192, 0.1)' : 'rgba(75, 192, 192, 0.5)',
                             tension: 0.4
                         }]
                     },
@@ -452,8 +460,10 @@ class DetailModal {
     renderGenericDetail(container, data) {
         container.innerHTML = `
             <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Surová data</h6>
+                </div>
                 <div class="card-body">
-                    <h5>Surová data</h5>
                     <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">
                         ${JSON.stringify(data, null, 2)}
                     </pre>
@@ -542,4 +552,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = DetailModal;
 }
 
-console.log('🔍 Detail Modal modul načten - KOMPLETNĚ FUNKČNÍ');
+console.log('🔍 Detail Modal načten - FUNKČNÍ VERZE');
