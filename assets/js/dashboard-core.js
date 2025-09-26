@@ -1,5 +1,5 @@
 /**
- * Dashboard Core - Hlavní jádro modularní aplikace (OPRAVENO)
+ * Dashboard Core - Hlavní jádro modularní aplikace (KOMPLETNĚ OPRAVENO)
  * Verze: 3.0 - Modularní architektura
  * Autor: Dashboard System
  */
@@ -252,6 +252,116 @@ class DashboardCore {
         } catch (error) {
             console.error('❌ Chyba při ukládání konfigurace:', error);
         }
+    }
+
+    // ========================================
+    // DATA SOURCES MANAGEMENT - CHYBĚJÍCÍ FUNKCE
+    // ========================================
+
+    /**
+     * Získání všech datových zdrojů
+     */
+    getDataSources() {
+        const sources = {};
+        this.dataSources.forEach((config, id) => {
+            sources[id] = config;
+        });
+        return sources;
+    }
+
+    /**
+     * Přidání datového zdroje
+     */
+    addDataSource(sourceId, sourceConfig) {
+        console.log(`➕ Přidání datového zdroje: ${sourceId}`, sourceConfig);
+        this.dataSources.set(sourceId, sourceConfig);
+        this.saveUserConfiguration();
+    }
+
+    /**
+     * Odebrání datového zdroje
+     */
+    removeDataSource(sourceId) {
+        console.log(`🗑️ Odebrání datového zdroje: ${sourceId}`);
+        this.dataSources.delete(sourceId);
+        
+        // Odebrání závislých widgetů
+        const dependentWidgets = Array.from(this.widgets.entries())
+            .filter(([_, config]) => config.dataSource === sourceId);
+            
+        dependentWidgets.forEach(([widgetId]) => {
+            this.removeWidget(widgetId);
+        });
+        
+        this.saveUserConfiguration();
+    }
+
+    // ========================================
+    // WIDGETS MANAGEMENT - CHYBĚJÍCÍ FUNKCE
+    // ========================================
+
+    /**
+     * Získání všech widgetů
+     */
+    getWidgets() {
+        const widgets = {};
+        this.widgets.forEach((config, id) => {
+            widgets[id] = config;
+        });
+        return widgets;
+    }
+
+    /**
+     * Přidání widgetu
+     */
+    addWidget(widgetId, widgetConfig) {
+        console.log(`🧩 Přidání widgetu: ${widgetId}`, widgetConfig);
+        this.widgets.set(widgetId, widgetConfig);
+        this.saveUserConfiguration();
+        
+        // Vykresli widget
+        if (this.widgetFactory) {
+            this.widgetFactory.createWidget(widgetId, widgetConfig)
+                .then(element => {
+                    if (element) {
+                        const grid = document.getElementById('dashboardGrid');
+                        if (grid) {
+                            grid.appendChild(element);
+                            this.hideEmptyDashboard();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error(`❌ Chyba při vytváření widgetu ${widgetId}:`, error);
+                });
+        }
+    }
+
+    /**
+     * Odebrání widgetu
+     */
+    removeWidget(widgetId) {
+        console.log(`🗑️ Odebrání widgetu: ${widgetId}`);
+        this.widgets.delete(widgetId);
+        
+        // Odebrání z DOM
+        const element = document.querySelector(`[data-widget-id="${widgetId}"]`);
+        if (element) {
+            element.remove();
+        }
+        
+        this.saveUserConfiguration();
+        this.checkEmptyDashboard();
+    }
+
+    /**
+     * Získání layoutu
+     */
+    getLayout() {
+        return {
+            type: this.activeLayout,
+            widgets: Array.from(this.widgets.keys())
+        };
     }
 
     /**
@@ -626,4 +736,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = DashboardCore;
 }
 
-console.log('🚀 Dashboard Core modul načten - OPRAVENO');
+console.log('🚀 Dashboard Core modul načten - KOMPLETNĚ OPRAVENO');
