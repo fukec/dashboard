@@ -7,430 +7,207 @@
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Custom CSS -->
-    <link href="assets/css/style.css" rel="stylesheet">
+    <!-- OPRAVENO: Správné CSS soubory -->
+    <link href="style.css" rel="stylesheet">
+    <link href="widgets.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 
-    <!-- Preloader -->
-    <div id="preloader" class="d-flex justify-content-center align-items-center position-fixed w-100 h-100" 
-         style="z-index: 9999; background: rgba(248, 249, 250, 0.95); backdrop-filter: blur(5px);">
-        <div class="text-center">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">Načítání...</span>
-            </div>
-            <h5 class="text-primary mb-2">Inicializace dashboard...</h5>
-            <p class="text-muted small">Google Sheets Dashboard</p>
+<!-- Preloader -->
+<div id="preloader" class="d-flex justify-content-center align-items-center position-fixed w-100 h-100" style="z-index: 9999; background: rgba(248, 249, 250, 0.95); backdrop-filter: blur(5px);">
+    <div class="text-center">
+        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Načítám...</span>
         </div>
+        <h5 class="text-primary mb-2">Inicializace dashboard...</h5>
+        <p class="text-muted small">Google Sheets Dashboard</p>
     </div>
+</div>
 
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="position-fixed top-0 start-0 w-100 h-100 d-none" 
-         style="z-index: 1050; background: rgba(0,0,0,0.5);">
-        <div class="d-flex justify-content-center align-items-center h-100">
-            <div class="card border-0 shadow">
-                <div class="card-body text-center">
-                    <div class="spinner-border text-primary mb-3" role="status">
-                        <span class="visually-hidden">Načítání...</span>
-                    </div>
-                    <h6 class="mb-2">Načítám data z Google Sheets...</h6>
-                    <p class="text-muted small mb-0">Připojuji se k datovým zdrojům...</p>
-                    <div class="progress mt-3" style="height: 4px;">
-                        <div id="loadingProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
-                    </div>
+<!-- Loading Indicator - OPRAVENO: Přidáno chybějící -->
+<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="z-index: 1050; background: rgba(0,0,0,0.5);">
+    <div class="d-flex justify-content-center align-items-center h-100">
+        <div class="card border-0 shadow">
+            <div class="card-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Načítám...</span>
+                </div>
+                <h6 class="mb-2">Načítám data z Google Sheets...</h6>
+                <p class="text-muted small mb-0">Připojuji se k datovým zdrojům...</p>
+                <div class="progress mt-3" style="height: 4px;">
+                    <div id="loadingProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Error Display -->
-    <div id="errorDisplay" class="position-fixed top-0 start-0 w-100 h-100 d-none" 
-         style="z-index: 1040; background: rgba(248, 249, 250, 0.95);">
-        <div class="d-flex justify-content-center align-items-center h-100">
-            <div class="card border-danger shadow">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Nastala chyba!</h5>
-                </div>
-                <div class="card-body text-center">
-                    <p id="errorMessage" class="text-danger mb-3">Zkontrolujte konfiguraci a zkuste to znovu.</p>
-                    <div class="d-grid gap-2 d-md-block">
-                        <button id="retryBtn" class="btn btn-primary">
-                            <i class="fas fa-redo me-2"></i>Zkusit znovu
-                        </button>
-                        <button id="showConfigFromError" class="btn btn-outline-secondary">
-                            <i class="fas fa-cog me-2"></i>Konfigurace
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="#">
-                <i class="fas fa-chart-line me-2"></i>Dashboard přehled
-            </a>
-            
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+<!-- Main Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#">
+            <i class="fas fa-chart-line me-2"></i>Dashboard přehled
+        </a>
+        
+        <div class="navbar-nav ms-auto d-flex flex-row">
+            <span class="navbar-text me-3">
+                <i class="fas fa-clock me-1"></i>
+                <span id="lastUpdateTime">--:--</span>
+            </span>
+            <button class="btn btn-outline-light btn-sm me-2" id="loadDataBtn" title="Načíst data">
+                <i id="loadDataIcon" class="fas fa-sync-alt me-1"></i>Načíst data
             </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <span class="navbar-text me-3">
-                            <i class="fas fa-clock me-1"></i>
-                            <span id="updateTime">--:--</span>
-                        </span>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <button class="btn btn-outline-light btn-sm me-2" id="refreshBtn" title="Obnovit data">
-                            <i class="fas fa-sync-alt me-1"></i>Obnovit
-                        </button>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <button class="btn btn-outline-light btn-sm me-2" id="configBtn" title="Konfigurace">
-                            <i class="fas fa-cog me-1"></i>Konfigurace
-                        </button>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Přepnout téma">
-                            <i class="fas fa-moon"></i>
-                        </button>
-                    </li>
-                </ul>
-            </div>
+            <button class="btn btn-outline-light btn-sm me-2" id="configDataSources" title="Konfigurace zdrojů">
+                <i class="fas fa-database me-1"></i>Zdroje
+            </button>
+            <button class="btn btn-outline-light btn-sm me-2" id="configWidgets" title="Konfigurace widgetů">
+                <i class="fas fa-puzzle-piece me-1"></i>Widgety
+            </button>
+            <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Přepnout téma">
+                <i class="fas fa-moon"></i>
+            </button>
         </div>
-    </nav>
+    </div>
+</nav>
 
-    <!-- Main Content -->
-    <main id="dashboardContent" class="container-fluid py-4">
-        
-        <!-- Header Section -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h1 class="h4 mb-1 text-primary">
-                                    <i class="fas fa-chart-line me-2"></i>Dashboard přehled
-                                </h1>
-                                <p class="text-muted mb-0">Real-time data z Google Sheets</p>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <div class="d-flex justify-content-end align-items-center">
-                                    <span class="badge bg-success me-2">
-                                        <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Online
-                                    </span>
-                                    <small class="text-muted">
-                                        Poslední aktualizace: <span id="lastUpdate">--:--</span>
-                                    </small>
-                                </div>
-                            </div>
+<!-- Main Content -->
+<main class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="h4 mb-1 text-primary">
+                                <i class="fas fa-chart-line me-2"></i>Dashboard přehled
+                            </h1>
+                            <p class="text-muted mb-0">Real-time data z Google Sheets</p>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Metrics Cards -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="text-dark mb-0">
-                        <i class="fas fa-tachometer-alt me-2 text-primary"></i>Klíčové metriky
-                    </h5>
-                    <small class="text-muted">Real-time hodnoty</small>
-                </div>
-                <div id="metricsCards" class="row">
-                    <!-- Metrics cards will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Section -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="text-dark mb-0">
-                        <i class="fas fa-chart-bar me-2 text-primary"></i>Grafy a analýzy
-                    </h5>
-                </div>
-            </div>
-            
-            <!-- Monthly Trends Chart -->
-            <div class="col-lg-8 mb-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 pb-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="card-title text-primary mb-0">
-                                <i class="fas fa-chart-line me-2"></i>Měsíční trendy
-                            </h6>
-                            <small class="text-muted">Prodeje, uživatelé a příjmy</small>
-                            <button class="btn btn-sm btn-outline-primary" id="chartFullscreen">
-                                <i class="fas fa-expand"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container" style="position: relative; height: 300px;">
-                            <canvas id="monthlyChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Category Distribution -->
-            <div class="col-lg-4 mb-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 pb-0">
-                        <h6 class="card-title text-primary mb-0">
-                            <i class="fas fa-chart-pie me-2"></i>Rozložení kategorií
-                        </h6>
-                        <small class="text-muted">Distribuční analýza</small>
-                    </div>
-                    <div class="card-body d-flex align-items-center justify-content-center">
-                        <div class="chart-container" style="position: relative; height: 250px; width: 250px;">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Performance & Growth Charts -->
-        <div class="row mb-4">
-            <div class="col-lg-6 mb-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 pb-0">
-                        <h6 class="card-title text-primary mb-0">
-                            <i class="fas fa-chart-bar me-2"></i>Výkonnostní analýza
-                        </h6>
-                        <small class="text-muted">KPI trendy</small>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container" style="position: relative; height: 200px;">
-                            <canvas id="performanceChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-6 mb-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0 pb-0">
-                        <h6 class="card-title text-primary mb-0">
-                            <i class="fas fa-chart-area me-2"></i>Růstová analýza
-                        </h6>
-                        <small class="text-muted">Month-over-month růst</small>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container" style="position: relative; height: 200px;">
-                            <canvas id="growthChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Data Table Section -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-transparent border-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-title text-primary mb-1">
-                                    <i class="fas fa-table me-2"></i>Detailní data
-                                </h6>
-                                <small class="text-muted">Data z Google Sheets</small>
-                            </div>
-                            <div class="d-flex align-items-center">
-                                <input type="text" id="searchInput" class="form-control form-control-sm me-3" 
-                                       placeholder="Hledat v datech..." style="width: 200px;">
-                                <span id="tableInfo" class="badge bg-secondary">Načítám...</span>
+                        <div class="col-md-4 text-end">
+                            <div class="d-flex justify-content-end align-items-center">
+                                <span class="badge bg-success me-2">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Online
+                                </span>
+                                <small class="text-muted">
+                                    Poslední aktualizace: <span id="lastUpdate">--:--</span>
+                                </small>
                             </div>
                         </div>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-sm mb-0">
-                                <thead class="table-light sticky-top">
-                                    <tr id="tableHeader">
-                                        <!-- Table headers will be populated by JavaScript -->
-                                    </tr>
-                                </thead>
-                                <tbody id="tableBody">
-                                    <tr>
-                                        <td colspan="6" class="text-center py-5 text-muted">
-                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                            Načítám...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent border-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div id="tableFooterInfo" class="text-muted small">
-                                Zobrazeno 0 z 0 záznamů
-                            </div>
-                            <nav>
-                                <ul id="tablePagination" class="pagination pagination-sm mb-0">
-                                    <!-- Pagination will be populated by JavaScript -->
-                                </ul>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- Configuration Modal -->
-    <div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="configModalLabel">
-                        <i class="fas fa-cog me-2"></i>Konfigurace Dashboard
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="configForm">
-                        <div class="mb-3">
-                            <label for="gasUrl" class="form-label fw-bold">
-                                <i class="fas fa-link me-2 text-primary"></i>URL Google Apps Script
-                            </label>
-                            <input type="url" class="form-control" id="gasUrl" required 
-                                   placeholder="https://script.google.com/macros/s/.../exec">
-                            <div class="form-text">
-                                Vložte URL vašeho nasazeného Google Apps Script Web App
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="refreshInterval" class="form-label fw-bold">
-                                <i class="fas fa-clock me-2 text-primary"></i>Interval obnovování
-                            </label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="refreshInterval" 
-                                       min="1" max="180" value="30">
-                                <span class="input-group-text">minut</span>
-                            </div>
-                            <div class="form-text">
-                                Jak často se mají data automaticky obnovovat
-                            </div>
-                        </div>
-
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="enableNotifications" checked>
-                            <label class="form-check-label fw-bold" for="enableNotifications">
-                                <i class="fas fa-bell me-2 text-primary"></i>Povolit notifikace
-                            </label>
-                            <div class="form-text">
-                                Zobrazit oznámení při úspěšném načtení nebo chybách
-                            </div>
-                        </div>
-                    </form>
-
-                    <div class="mt-4 p-3 bg-light rounded">
-                        <h6 class="text-primary mb-2">
-                            <i class="fas fa-info-circle me-2"></i>Návod:
-                        </h6>
-                        <ol class="small mb-2">
-                            <li>Vytvořte Google Apps Script</li>
-                            <li>Vložte poskytnutý backend kód</li>
-                            <li>Nastavte sheet ID v konfiguraci</li>
-                            <li>Nasaďte jako Web App</li>
-                            <li>Zkopírujte URL sem</li>
-                        </ol>
-                        <div class="alert alert-info alert-sm mb-0">
-                            <strong>Tip:</strong> Pro testování použijte <code>Ctrl+Alt+C</code> kdykoli pro otevření konfigurace.
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Zrušit
-                    </button>
-                    <button type="button" class="btn btn-primary" id="saveConfig">
-                        <i class="fas fa-save me-2"></i>Uložit konfiguraci
-                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Success Toast -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div id="successToast" class="toast" role="alert">
-            <div class="toast-header bg-success text-white">
-                <i class="fas fa-check-circle me-2"></i>
-                <strong class="me-auto">Úspěch</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">
-                <span id="successMessage">Operace byla úspěšně dokončena.</span>
+    <!-- NOVĚ PŘIDÁNO: Dashboard Grid Container -->
+    <div id="dashboardGrid" class="row">
+        <!-- Widgety budou dynamicky vkládány zde -->
+    </div>
+
+    <!-- NOVĚ PŘIDÁNO: Empty Dashboard State -->
+    <div id="emptyDashboard" class="text-center py-5" style="display: none;">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-5">
+                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                <h4 class="text-muted">Dashboard je prázdný</h4>
+                <p class="text-muted mb-4">Přidejte datové zdroje a widgety pro zobrazení dat</p>
+                <button class="btn btn-primary me-2" id="addDataSourceBtn">
+                    <i class="fas fa-database me-2"></i>Přidat datový zdroj
+                </button>
+                <button class="btn btn-outline-primary" id="addWidgetBtn">
+                    <i class="fas fa-puzzle-piece me-2"></i>Přidat widget
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Loading Status - NOVĚ PŘIDÁNO -->
+    <div id="loadingStatus" class="text-center text-muted" style="display: none;">
+        Inicializuji...
+    </div>
+</main>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <!-- Toasts budou dynamicky přidávány -->
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- OPRAVENO: Správné načítání modulů -->
+<script src="data-manager.js"></script>
+<script src="config-manager.js"></script>
+<script src="widget-factory.js"></script>
+<script src="detail-modal.js"></script>
+<script src="dashboard-core.js"></script>
+
+<!-- NOVĚ PŘIDÁNO: Inicializace aplikace -->
+<script>
+console.log('🚀 Iniciating Dashboard Application...');
+
+// Počkej až se DOM načte
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📋 DOM loaded, initializing Dashboard Core...');
     
-    <!-- Original Dashboard JS -->
-    <script src="assets/js/dashboard.js"></script>
+    // Zkontroluj, zda jsou všechny moduly načtené
+    const requiredModules = ['DataManager', 'ConfigManager', 'WidgetFactory', 'DetailModal', 'DashboardCore'];
+    const missingModules = [];
     
-    <!-- Debug Info -->
-    <script>
-        console.log('🚀 Index.html načten - používá původní dashboard.js');
-        console.log('📋 Dostupné funkce:');
-        console.log('   - Obnovit data: #refreshBtn');
-        console.log('   - Konfigurace: #configBtn nebo Ctrl+Alt+C');
-        console.log('   - Přepnout téma: #themeToggle');
-        console.log('   - Debug info: window.debugDashboard');
-        
-        // Kontrola po načtení
-        window.addEventListener('load', function() {
-            setTimeout(() => {
-                if (typeof window.dashboard !== 'undefined') {
-                    console.log('✅ Dashboard inicializován úspěšně');
-                    console.log('🎛️ Dashboard instance:', window.dashboard);
-                    console.log('🐛 Debug commands:', window.debugDashboard);
-                } else {
-                    console.error('❌ Dashboard se nepodařilo inicializovat');
-                    console.log('🔍 Zkontrolujte, zda existuje assets/js/dashboard.js');
-                }
-                
-                // Kontrola tlačítek
-                const buttons = ['refreshBtn', 'configBtn', 'themeToggle'];
-                buttons.forEach(btnId => {
-                    const btn = document.getElementById(btnId);
-                    if (btn) {
-                        console.log(`✅ Tlačítko #${btnId} nalezeno`);
-                    } else {
-                        console.error(`❌ Tlačítko #${btnId} nenalezeno`);
-                    }
-                });
-            }, 2000);
+    requiredModules.forEach(moduleName => {
+        if (typeof window[moduleName] === 'undefined') {
+            missingModules.push(moduleName);
+        }
+    });
+    
+    if (missingModules.length > 0) {
+        console.error('❌ Chybějící moduly:', missingModules);
+        document.getElementById('preloader').innerHTML = `
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                <h5 class="text-danger">Chyba při načítání modulů</h5>
+                <p class="text-muted">Chybějící moduly: ${missingModules.join(', ')}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Inicializuj Dashboard Core
+    try {
+        window.dashboardCore = new DashboardCore();
+        window.dashboardCore.init().then(() => {
+            console.log('✅ Dashboard úspěšně inicializován');
+        }).catch(error => {
+            console.error('❌ Chyba při inicializaci Dashboard:', error);
+            document.getElementById('preloader').innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                    <h5 class="text-danger">Chyba inicializace</h5>
+                    <p class="text-muted">${error.message}</p>
+                </div>
+            `;
         });
-    </script>
+    } catch (error) {
+        console.error('❌ Kritická chyba při vytváření Dashboard Core:', error);
+    }
+});
+
+// Debug informace
+console.log('📊 Dashboard modules loading...');
+console.log('Available classes:', {
+    DataManager: typeof DataManager,
+    ConfigManager: typeof ConfigManager, 
+    WidgetFactory: typeof WidgetFactory,
+    DetailModal: typeof DetailModal,
+    DashboardCore: typeof DashboardCore
+});
+</script>
+
 </body>
 </html>
