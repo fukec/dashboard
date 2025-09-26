@@ -1,3 +1,7 @@
+/**
+ * OPRAVENÝ INDEX.HTML - KOMPLETNÍ ŘEŠENÍ
+ * Řeší problém s načítáním modulů správným způsobem
+ */
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -12,8 +16,8 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- OPRAVENO: Správné CSS soubory -->
-    <link href="style.css" rel="stylesheet">
+    <!-- CSS soubory -->
+    <link href="style-1.css" rel="stylesheet">
     <link href="widgets.css" rel="stylesheet">
 </head>
 <body class="bg-light">
@@ -29,7 +33,7 @@
     </div>
 </div>
 
-<!-- Loading Indicator - OPRAVENO: Přidáno chybějící -->
+<!-- Loading Overlay -->
 <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="z-index: 1050; background: rgba(0,0,0,0.5);">
     <div class="d-flex justify-content-center align-items-center h-100">
         <div class="card border-0 shadow">
@@ -105,12 +109,12 @@
         </div>
     </div>
 
-    <!-- NOVĚ PŘIDÁNO: Dashboard Grid Container -->
+    <!-- Dashboard Grid -->
     <div id="dashboardGrid" class="row">
         <!-- Widgety budou dynamicky vkládány zde -->
     </div>
 
-    <!-- NOVĚ PŘIDÁNO: Empty Dashboard State -->
+    <!-- Empty Dashboard State -->
     <div id="emptyDashboard" class="text-center py-5" style="display: none;">
         <div class="card border-0 shadow-sm">
             <div class="card-body py-5">
@@ -127,7 +131,7 @@
         </div>
     </div>
 
-    <!-- Loading Status - NOVĚ PŘIDÁNO -->
+    <!-- Loading Status -->
     <div id="loadingStatus" class="text-center text-muted" style="display: none;">
         Inicializuji...
     </div>
@@ -141,72 +145,143 @@
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- OPRAVENO: Správné načítání modulů -->
-<script src="data-manager.js"></script>
-<script src="config-manager.js"></script>
-<script src="widget-factory.js"></script>
-<script src="detail-modal.js"></script>
-<script src="dashboard-core.js"></script>
-
-<!-- NOVĚ PŘIDÁNO: Inicializace aplikace -->
+<!-- OPRAVENÉ NAČÍTÁNÍ MODULŮ - S GLOBÁLNÍM VYSTAVENÍM -->
 <script>
-console.log('🚀 Iniciating Dashboard Application...');
+// KROK 1: Načti všechny JavaScript soubory a vystav třídy globálně
+console.log('📦 Načítám JavaScript moduly...');
 
-// Počkej až se DOM načte
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📋 DOM loaded, initializing Dashboard Core...');
-    
-    // Zkontroluj, zda jsou všechny moduly načtené
-    const requiredModules = ['DataManager', 'ConfigManager', 'WidgetFactory', 'DetailModal', 'DashboardCore'];
-    const missingModules = [];
-    
-    requiredModules.forEach(moduleName => {
-        if (typeof window[moduleName] === 'undefined') {
-            missingModules.push(moduleName);
-        }
+// Funkce pro dynamické načítání skriptů
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
     });
+}
+
+// Načti moduly v pořadí
+Promise.all([
+    loadScript('data-manager.js'),
+    loadScript('config-manager.js'), 
+    loadScript('widget-factory.js'),
+    loadScript('detail-modal.js'),
+    loadScript('dashboard-core.js')
+]).then(() => {
+    console.log('✅ Všechny moduly načteny');
     
-    if (missingModules.length > 0) {
-        console.error('❌ Chybějící moduly:', missingModules);
-        document.getElementById('preloader').innerHTML = `
-            <div class="text-center">
-                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-                <h5 class="text-danger">Chyba při načítání modulů</h5>
-                <p class="text-muted">Chybějící moduly: ${missingModules.join(', ')}</p>
-            </div>
-        `;
-        return;
+    // KROK 2: Manuálně vystav třídy do globálního scope
+    // (protože původní soubory je nevystavují)
+    
+    // Zkontroluj, které třídy jsou dostupné
+    const availableClasses = [];
+    
+    if (typeof DataManager !== 'undefined') {
+        window.DataManager = DataManager;
+        availableClasses.push('DataManager');
     }
     
-    // Inicializuj Dashboard Core
+    if (typeof ConfigManager !== 'undefined') {
+        window.ConfigManager = ConfigManager;
+        availableClasses.push('ConfigManager');
+    }
+    
+    if (typeof WidgetFactory !== 'undefined') {
+        window.WidgetFactory = WidgetFactory;
+        availableClasses.push('WidgetFactory');
+    }
+    
+    if (typeof DetailModal !== 'undefined') {
+        window.DetailModal = DetailModal;
+        availableClasses.push('DetailModal');
+    }
+    
+    if (typeof DashboardCore !== 'undefined') {
+        window.DashboardCore = DashboardCore;
+        availableClasses.push('DashboardCore');
+    }
+    
+    console.log('🎯 Dostupné třídy:', availableClasses);
+    
+    // KROK 3: Inicializace Dashboard
+    if (availableClasses.length >= 4) { // Potřebujeme alespoň 4 hlavní třídy
+        console.log('🚀 Spouštím inicializaci Dashboard...');
+        initializeDashboard();
+    } else {
+        console.error('❌ Nedostatek modulů pro spuštění:', availableClasses);
+        showModuleError('Nepodařilo se načíst všechny potřebné moduly: ' + availableClasses.join(', '));
+    }
+    
+}).catch(error => {
+    console.error('❌ Chyba při načítání modulů:', error);
+    showModuleError('Chyba při načítání JavaScript modulů: ' + error.message);
+});
+
+// KROK 4: Inicializace Dashboard aplikace
+function initializeDashboard() {
     try {
+        console.log('📋 Inicializuji Dashboard Core...');
+        
+        // Vytvoř instanci Dashboard Core
         window.dashboardCore = new DashboardCore();
+        
+        // Spusť inicializaci
         window.dashboardCore.init().then(() => {
-            console.log('✅ Dashboard úspěšně inicializován');
+            console.log('✅ Dashboard úspěšně spuštěn!');
+            
+            // Přidej event listeners pro prázdný dashboard
+            const addDataSourceBtn = document.getElementById('addDataSourceBtn');
+            const addWidgetBtn = document.getElementById('addWidgetBtn');
+            
+            if (addDataSourceBtn) {
+                addDataSourceBtn.addEventListener('click', () => {
+                    if (window.dashboardCore.configManager) {
+                        window.dashboardCore.configManager.openDataSourcesConfig();
+                    }
+                });
+            }
+            
+            if (addWidgetBtn) {
+                addWidgetBtn.addEventListener('click', () => {
+                    if (window.dashboardCore.configManager) {
+                        window.dashboardCore.configManager.openWidgetsConfig();
+                    }
+                });
+            }
+            
         }).catch(error => {
             console.error('❌ Chyba při inicializaci Dashboard:', error);
-            document.getElementById('preloader').innerHTML = `
-                <div class="text-center">
-                    <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-                    <h5 class="text-danger">Chyba inicializace</h5>
-                    <p class="text-muted">${error.message}</p>
-                </div>
-            `;
+            showModuleError('Chyba při inicializaci: ' + error.message);
         });
+        
     } catch (error) {
         console.error('❌ Kritická chyba při vytváření Dashboard Core:', error);
+        showModuleError('Kritická chyba: ' + error.message);
     }
-});
+}
+
+// Zobrazení chyby při načítání modulů
+function showModuleError(message) {
+    const preloader = document.getElementById('preloader');
+    if (preloader) {
+        preloader.innerHTML = `
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                <h5 class="text-danger">Chyba při načítání aplikace</h5>
+                <p class="text-muted">${message}</p>
+                <button class="btn btn-primary" onclick="location.reload()">
+                    <i class="fas fa-refresh me-2"></i>Zkusit znovu
+                </button>
+            </div>
+        `;
+    }
+}
 
 // Debug informace
-console.log('📊 Dashboard modules loading...');
-console.log('Available classes:', {
-    DataManager: typeof DataManager,
-    ConfigManager: typeof ConfigManager, 
-    WidgetFactory: typeof WidgetFactory,
-    DetailModal: typeof DetailModal,
-    DashboardCore: typeof DashboardCore
-});
+console.log('📊 Dashboard Application Loading...');
+console.log('🌐 Browser:', navigator.userAgent);
+console.log('📅 Date:', new Date().toISOString());
 </script>
 
 </body>
