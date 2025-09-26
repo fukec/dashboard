@@ -1,5 +1,5 @@
 /**
- * Detail Modal - Zobrazování detailních informací o widgetech
+ * Detail Modal - Zobrazení detailu widgetu v modálu
  * Verze: 3.0 - Modularní architektura
  * Autor: Dashboard System
  */
@@ -8,815 +8,469 @@ class DetailModal {
     constructor(dashboardCore) {
         this.core = dashboardCore;
         this.modal = null;
-        this.currentWidget = null;
-        this.currentData = null;
+        this.currentWidgetId = null;
+        this.currentConfig = null;
     }
 
     async init() {
         console.log('🔍 Inicializace DetailModal...');
-        this.setupModal();
+        this.createModalElement();
+        this.setupEventListeners();
     }
 
     /**
-     * Nastavení modal dialogu
+     * Vytvoření modálního okna
      */
-    setupModal() {
-        this.modal = document.getElementById('detailModal');
-        
-        if (this.modal) {
-            // Export tlačítko
-            const exportBtn = document.getElementById('exportDetailBtn');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => this.exportCurrentData());
-            }
-        }
-    }
-
-    /**
-     * Zobrazení detailů widgetu
-     */
-    async showWidgetDetails(widgetId) {
-        console.log(`🔍 Zobrazuji detail widgetu: ${widgetId}`);
-        
-        if (!this.modal) {
-            console.error('Detail modal není k dispozici');
+    createModalElement() {
+        // Kontrola, zda už modal neexistuje
+        if (document.getElementById('detailModal')) {
+            this.modal = new bootstrap.Modal(document.getElementById('detailModal'));
             return;
         }
 
-        this.currentWidget = widgetId;
-        const widgetConfig = this.core.widgets.get(widgetId);
-        
-        if (!widgetConfig) {
-            this.showError('Widget nebyl nalezen');
-            return;
-        }
-
-        try {
-            // Nastav titul modal
-            this.setModalTitle(widgetConfig.title || widgetId, widgetConfig.type);
-            
-            // Zobraz loading
-            this.showLoading();
-            
-            // Získej data
-            const data = await this.getWidgetDetailData(widgetId, widgetConfig);
-            this.currentData = data;
-            
-            // Vykresli detail podle typu widgetu
-            await this.renderDetailContent(widgetId, widgetConfig, data);
-            
-            // Zobraz modal
-            const bsModal = new bootstrap.Modal(this.modal);
-            bsModal.show();
-            
-        } catch (error) {
-            console.error(`❌ Chyba při zobrazování detailu widgetu ${widgetId}:`, error);
-            this.showError('Chyba při načítání detailu: ' + error.message);
-        }
-    }
-
-    /**
-     * Nastavení titulku modal
-     */
-    setModalTitle(title, type) {
-        const titleElement = document.getElementById('detailModalTitle');
-        if (titleElement) {
-            const widgetType = this.core.widgetFactory.widgetTypes.get(type);
-            const icon = widgetType?.icon || 'fas fa-search';
-            
-            titleElement.innerHTML = `
-                <i class="${icon} me-2"></i>
-                Detail: ${title}
-            `;
-        }
-    }
-
-    /**
-     * Zobrazení loading stavu
-     */
-    showLoading() {
-        const content = document.getElementById('detailContent');
-        if (content) {
-            content.innerHTML = `
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <div class="mt-3">Načítám detailní data...</div>
-                </div>
-            `;
-        }
-    }
-
-    /**
-     * Zobrazení chybové zprávy
-     */
-    showError(message) {
-        const content = document.getElementById('detailContent');
-        if (content) {
-            content.innerHTML = `
-                <div class="alert alert-danger" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    ${message}
-                </div>
-            `;
-        }
-    }
-
-    /**
-     * Získání detailních dat pro widget
-     */
-    async getWidgetDetailData(widgetId, widgetConfig) {
-        if (!widgetConfig.dataSource) {
-            throw new Error('Widget nemá nakonfigurovaný zdroj dat');
-        }
-
-        // Získej raw data ze zdroje
-        let sourceData = this.core.dataManager.getSourceData(widgetConfig.dataSource);
-        
-        if (!sourceData) {
-            // Pokud data nejsou v cache, pokus se je načíst
-            const sourceConfig = this.core.dataSources.get(widgetConfig.dataSource);
-            if (sourceConfig) {
-                sourceData = await this.core.dataManager.loadDataSource(widgetConfig.dataSource, sourceConfig);
-            }
-        }
-
-        if (!sourceData) {
-            throw new Error('Data nejsou dostupná');
-        }
-
-        return sourceData;
-    }
-
-    /**
-     * Vykreslení detailního obsahu
-     */
-    async renderDetailContent(widgetId, widgetConfig, data) {
-        const content = document.getElementById('detailContent');
-        if (!content) return;
-
-        switch (widgetConfig.type) {
-            case 'metric-card':
-                this.renderMetricDetail(content, widgetConfig, data);
-                break;
-                
-            case 'line-chart':
-            case 'bar-chart':
-            case 'pie-chart':
-                this.renderChartDetail(content, widgetId, widgetConfig, data);
-                break;
-                
-            case 'data-table':
-                this.renderTableDetail(content, widgetConfig, data);
-                break;
-                
-            case 'kpi-grid':
-                this.renderKpiDetail(content, widgetConfig, data);
-                break;
-                
-            default:
-                this.renderGenericDetail(content, widgetConfig, data);
-        }
-    }
-
-    /**
-     * Detail pro metrickou kartu
-     */
-    renderMetricDetail(content, config, data) {
-        let html = `
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6><i class="fas fa-chart-line me-2"></i>Detaily metriky</h6>
+        const modalHtml = `
+            <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="detailModalLabel">
+                                <i class="fas fa-chart-line me-2"></i>Detail widgetu
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="card-body">
-        `;
-
-        if (Array.isArray(data) && data.length > 0) {
-            // Vypočítej všechny agregace
-            const values = data.map(row => this.getNestedValue(row, config.valueField))
-                             .filter(v => typeof v === 'number');
-            
-            if (values.length > 0) {
-                const sum = values.reduce((a, b) => a + b, 0);
-                const avg = sum / values.length;
-                const min = Math.min(...values);
-                const max = Math.max(...values);
-                const count = values.length;
-                
-                html += `
-                    <table class="table table-sm">
-                        <tr><td><strong>Počet záznamů:</strong></td><td>${count}</td></tr>
-                        <tr><td><strong>Součet:</strong></td><td>${this.core.formatNumber(sum)}</td></tr>
-                        <tr><td><strong>Průměr:</strong></td><td>${this.core.formatNumber(avg)}</td></tr>
-                        <tr><td><strong>Minimum:</strong></td><td>${this.core.formatNumber(min)}</td></tr>
-                        <tr><td><strong>Maximum:</strong></td><td>${this.core.formatNumber(max)}</td></tr>
-                        <tr><td><strong>Rozptyl:</strong></td><td>${this.core.formatNumber(max - min)}</td></tr>
-                    </table>
-                `;
-            } else {
-                html += `<p class="text-muted">Žádná numerická data k zobrazení.</p>`;
-            }
-        } else {
-            html += `<p class="text-muted">Žádná data k zobrazení.</p>`;
-        }
-
-        html += `
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6><i class="fas fa-table me-2"></i>Poslední záznamy</h6>
-                        </div>
-                        <div class="card-body">
-        `;
-
-        // Zobraz posledních 10 záznamů
-        if (Array.isArray(data) && data.length > 0) {
-            const recentData = data.slice(-10);
-            
-            html += `<div class="table-responsive">
-                <table class="table table-sm table-striped">
-                    <thead>
-                        <tr>
-                            <th>Pořadí</th>
-                            <th>${config.valueField}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            recentData.forEach((row, index) => {
-                const value = this.getNestedValue(row, config.valueField);
-                html += `
-                    <tr>
-                        <td>${data.length - recentData.length + index + 1}</td>
-                        <td>${this.formatValue(value, config.format)}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `</tbody></table></div>`;
-        }
-
-        html += `
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        content.innerHTML = html;
-    }
-
-    /**
-     * Detail pro graf
-     */
-    renderChartDetail(content, widgetId, config, data) {
-        let html = `
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6><i class="fas fa-chart-area me-2"></i>Rozšířený graf</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" style="height: 400px;">
-                                <canvas id="detailChart_${widgetId}"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6><i class="fas fa-info-circle me-2"></i>Statistiky</h6>
-                        </div>
-                        <div class="card-body">
-        `;
-
-        // Statistiky dat
-        if (Array.isArray(data) && data.length > 0) {
-            const stats = this.calculateChartStats(data, config);
-            
-            html += `
-                <table class="table table-sm">
-                    <tr><td><strong>Počet bodů:</strong></td><td>${stats.dataPoints}</td></tr>
-                    <tr><td><strong>Rozsah dat:</strong></td><td>${stats.dateRange}</td></tr>
-                    ${stats.valueStats ? `
-                        <tr><td><strong>Průměrná hodnota:</strong></td><td>${this.core.formatNumber(stats.valueStats.avg)}</td></tr>
-                        <tr><td><strong>Min/Max:</strong></td><td>${this.core.formatNumber(stats.valueStats.min)} / ${this.core.formatNumber(stats.valueStats.max)}</td></tr>
-                    ` : ''}
-                </table>
-            `;
-        }
-
-        html += `
-                        </div>
-                    </div>
-                    
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h6><i class="fas fa-download me-2"></i>Export možnosti</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-outline-primary btn-sm" onclick="DetailModal.exportChartImage('${widgetId}')">
-                                    <i class="fas fa-image me-1"></i>Export jako PNG
-                                </button>
-                                <button class="btn btn-outline-primary btn-sm" onclick="DetailModal.exportChartData('${widgetId}')">
-                                    <i class="fas fa-file-csv me-1"></i>Export data (CSV)
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        content.innerHTML = html;
-
-        // Vytvoř rozšířený graf
-        setTimeout(() => {
-            this.createDetailChart(widgetId, config, data);
-        }, 100);
-    }
-
-    /**
-     * Detail pro tabulku
-     */
-    renderTableDetail(content, config, data) {
-        let html = `
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="row align-items-center">
-                                <div class="col">
-                                    <h6><i class="fas fa-table me-2"></i>Kompletní tabulka dat</h6>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div id="detailContent">
+                                        <div class="text-center py-5">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p class="mt-3 text-muted">Načítám detail...</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-auto">
-                                    <div class="input-group input-group-sm">
-                                        <input type="text" class="form-control" placeholder="Vyhledávání..." 
-                                               id="detailTableSearch" onkeyup="DetailModal.searchDetailTable(this.value)">
-                                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="card-title mb-0">
+                                                <i class="fas fa-info-circle me-2"></i>Informace
+                                            </h6>
+                                        </div>
+                                        <div class="card-body" id="detailInfo">
+                                            <!-- Dynamicky generováno -->
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="card mt-3">
+                                        <div class="card-header">
+                                            <h6 class="card-title mb-0">
+                                                <i class="fas fa-cogs me-2"></i>Akce
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-grid gap-2">
+                                                <button type="button" class="btn btn-primary btn-sm" id="editWidgetBtn">
+                                                    <i class="fas fa-edit me-2"></i>Upravit widget
+                                                </button>
+                                                <button type="button" class="btn btn-success btn-sm" id="refreshWidgetBtn">
+                                                    <i class="fas fa-sync-alt me-2"></i>Aktualizovat data
+                                                </button>
+                                                <button type="button" class="btn btn-info btn-sm" id="exportWidgetBtn">
+                                                    <i class="fas fa-download me-2"></i>Exportovat
+                                                </button>
+                                                <hr>
+                                                <button type="button" class="btn btn-danger btn-sm" id="deleteWidgetBtn">
+                                                    <i class="fas fa-trash me-2"></i>Smazat widget
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive" style="max-height: 600px;">
-                                <table class="table table-striped table-hover mb-0" id="detailTable">
-                                    <thead class="table-dark sticky-top">
-        `;
-
-        if (Array.isArray(data) && data.length > 0) {
-            // Hlavičky tabulky
-            const firstRow = data[0];
-            const columns = typeof firstRow === 'object' ? Object.keys(firstRow) : ['Hodnota'];
-            
-            html += '<tr>';
-            columns.forEach(column => {
-                html += `<th onclick="DetailModal.sortDetailTable('${column}')" style="cursor: pointer;">
-                    ${column} <i class="fas fa-sort ms-1"></i>
-                </th>`;
-            });
-            html += '</tr></thead><tbody>';
-
-            // Data řádky
-            data.forEach((row, index) => {
-                html += '<tr>';
-                columns.forEach(column => {
-                    const value = typeof row === 'object' ? (row[column] || '') : row;
-                    html += `<td>${this.formatTableValue(value)}</td>`;
-                });
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-        } else {
-            html += '<tr><td colspan="100%" class="text-center py-4">Žádná data k zobrazení</td></tr></tbody></table>';
-        }
-
-        html += `
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <div class="row align-items-center">
-                                <div class="col">
-                                    <small class="text-muted">Celkem ${Array.isArray(data) ? data.length : 0} záznamů</small>
-                                </div>
-                                <div class="col-auto">
-                                    <button class="btn btn-outline-primary btn-sm" onclick="DetailModal.exportCurrentData()">
-                                        <i class="fas fa-download me-1"></i>Export CSV
-                                    </button>
-                                </div>
-                            </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
                         </div>
                     </div>
                 </div>
             </div>
         `;
 
-        content.innerHTML = html;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        this.modal = new bootstrap.Modal(document.getElementById('detailModal'));
     }
 
     /**
-     * Obecný detail
+     * Nastavení event listenerů
      */
-    renderGenericDetail(content, config, data) {
-        let html = `
-            <div class="card">
-                <div class="card-header">
-                    <h6><i class="fas fa-info-circle me-2"></i>Detailní informace</h6>
-                </div>
-                <div class="card-body">
-        `;
-
-        // Konfigurace widgetu
-        html += `
-            <h6>Konfigurace widgetu:</h6>
-            <table class="table table-sm mb-4">
-                <tr><td><strong>Typ:</strong></td><td>${config.type}</td></tr>
-                <tr><td><strong>Název:</strong></td><td>${config.title || 'Bez názvu'}</td></tr>
-                <tr><td><strong>Zdroj dat:</strong></td><td>${config.dataSource || 'Není nakonfigurován'}</td></tr>
-            </table>
-        `;
-
-        // Základní info o datech
-        if (data) {
-            const stats = this.core.dataManager.getDataStats(data);
-            
-            html += `
-                <h6>Statistiky dat:</h6>
-                <table class="table table-sm">
-                    <tr><td><strong>Počet záznamů:</strong></td><td>${stats.count}</td></tr>
-                    <tr><td><strong>Počet polí:</strong></td><td>${stats.fields.length}</td></tr>
-                </table>
-            `;
-
-            if (stats.fields.length > 0) {
-                html += `
-                    <h6>Dostupná pole:</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Název pole</th>
-                                    <th>Typ</th>
-                                    <th>Unikátní hodnoty</th>
-                                    <th>Prázdné hodnoty</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                stats.fields.forEach(field => {
-                    html += `
-                        <tr>
-                            <td><code>${field.name}</code></td>
-                            <td><span class="badge bg-secondary">${field.type}</span></td>
-                            <td>${field.uniqueCount}</td>
-                            <td>${field.nullCount}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += '</tbody></table></div>';
-            }
-
-            // Ukázka dat
-            if (stats.sample && stats.sample.length > 0) {
-                html += `
-                    <h6 class="mt-4">Ukázka dat:</h6>
-                    <pre class="bg-light p-3 rounded"><code>${JSON.stringify(stats.sample, null, 2)}</code></pre>
-                `;
-            }
-        }
-
-        html += `
-                </div>
-            </div>
-        `;
-
-        content.innerHTML = html;
-    }
-
-    /**
-     * Vytvoření detailního grafu
-     */
-    createDetailChart(widgetId, config, data) {
-        const canvas = document.getElementById(`detailChart_${widgetId}`);
-        if (!canvas) return;
-
-        try {
-            const ctx = canvas.getContext('2d');
-            
-            // Příprava dat podle typu grafu
-            let chartData, chartOptions;
-            
-            switch (config.type) {
-                case 'line-chart':
-                    ({ chartData, chartOptions } = this.prepareDetailLineChart(data, config));
-                    break;
-                case 'bar-chart':
-                    ({ chartData, chartOptions } = this.prepareDetailBarChart(data, config));
-                    break;
-                case 'pie-chart':
-                    ({ chartData, chartOptions } = this.prepareDetailPieChart(data, config));
-                    break;
-                default:
-                    return;
-            }
-            
-            // Vytvoření grafu
-            new Chart(ctx, {
-                type: config.type.replace('-chart', ''),
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    ...chartOptions
-                }
-            });
-
-        } catch (error) {
-            console.error(`❌ Chyba při vytváření detailního grafu:`, error);
-            const canvas = document.getElementById(`detailChart_${widgetId}`);
-            if (canvas && canvas.parentNode) {
-                canvas.parentNode.innerHTML = `
-                    <div class="alert alert-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Chyba při vytváření grafu: ${error.message}
-                    </div>
-                `;
-            }
-        }
-    }
-
-    /**
-     * Příprava dat pro detailní čárový graf
-     */
-    prepareDetailLineChart(data, config) {
-        if (!Array.isArray(data) || data.length === 0) {
-            return { chartData: { datasets: [] }, chartOptions: {} };
-        }
-
-        const labels = data.map(row => this.getNestedValue(row, config.xField));
-        const yFields = Array.isArray(config.yFields) ? config.yFields : [config.yFields].filter(Boolean);
-        
-        const datasets = yFields.map((field, index) => {
-            const values = data.map(row => this.getNestedValue(row, field));
-            const color = this.getChartColor(index);
-            
-            return {
-                label: field,
-                data: values,
-                borderColor: color,
-                backgroundColor: color + '20',
-                fill: false,
-                tension: 0.4
-            };
+    setupEventListeners() {
+        // Edit button
+        document.getElementById('editWidgetBtn')?.addEventListener('click', () => {
+            this.editCurrentWidget();
         });
 
-        return {
-            chartData: { labels, datasets },
-            chartOptions: {
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: datasets.length > 1
-                    }
-                }
-            }
-        };
+        // Refresh button
+        document.getElementById('refreshWidgetBtn')?.addEventListener('click', () => {
+            this.refreshCurrentWidget();
+        });
+
+        // Export button
+        document.getElementById('exportWidgetBtn')?.addEventListener('click', () => {
+            this.exportCurrentWidget();
+        });
+
+        // Delete button
+        document.getElementById('deleteWidgetBtn')?.addEventListener('click', () => {
+            this.deleteCurrentWidget();
+        });
     }
 
     /**
-     * Výpočet statistik pro graf
+     * Zobrazení detailu widgetu
      */
-    calculateChartStats(data, config) {
-        const stats = {
-            dataPoints: data.length,
-            dateRange: 'N/A',
-            valueStats: null
-        };
+    async show(widgetId, widgetConfig = null) {
+        this.currentWidgetId = widgetId;
+        this.currentConfig = widgetConfig || this.core.widgets.get(widgetId);
 
-        if (data.length > 0) {
-            // Rozsah dat
-            if (config.xField) {
-                const xValues = data.map(row => this.getNestedValue(row, config.xField))
-                                  .filter(v => v != null);
-                if (xValues.length > 0) {
-                    const first = xValues[0];
-                    const last = xValues[xValues.length - 1];
-                    stats.dateRange = `${first} - ${last}`;
-                }
-            }
-
-            // Statistiky hodnot
-            const valueFields = config.yFields || [config.valueField];
-            if (valueFields && valueFields.length > 0) {
-                const allValues = [];
-                valueFields.forEach(field => {
-                    const values = data.map(row => this.getNestedValue(row, field))
-                                     .filter(v => typeof v === 'number');
-                    allValues.push(...values);
-                });
-
-                if (allValues.length > 0) {
-                    stats.valueStats = {
-                        avg: allValues.reduce((a, b) => a + b, 0) / allValues.length,
-                        min: Math.min(...allValues),
-                        max: Math.max(...allValues)
-                    };
-                }
-            }
-        }
-
-        return stats;
-    }
-
-    /**
-     * Export aktuálních dat
-     */
-    exportCurrentData() {
-        if (!this.currentData) {
-            this.core.showToast('Žádná data k exportu', 'warning');
+        if (!this.currentConfig) {
+            console.error(`❌ Widget ${widgetId} nenalezen`);
             return;
         }
 
+        // Nastav titulek
+        const modalTitle = document.getElementById('detailModalLabel');
+        if (modalTitle) {
+            modalTitle.innerHTML = `
+                <i class="fas fa-chart-line me-2"></i>
+                Detail: ${this.currentConfig.title || 'Unnamed Widget'}
+            `;
+        }
+
+        // Zobraz modal
+        this.modal.show();
+
+        // Načti obsah
+        await this.loadDetailContent();
+        this.loadDetailInfo();
+    }
+
+    /**
+     * Načtení obsahu detailu
+     */
+    async loadDetailContent() {
+        const contentDiv = document.getElementById('detailContent');
+        if (!contentDiv) return;
+
         try {
-            const csv = this.convertToCSV(this.currentData);
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
+            // Zobraz loading
+            contentDiv.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Načítám detail widgetu...</p>
+                </div>
+            `;
+
+            // Získej data widgetu
+            const sourceData = this.core.dataManager.getSourceData(this.currentConfig.dataSource);
             
-            const filename = `dashboard-data-${this.currentWidget || 'export'}-${new Date().toISOString().slice(0,10)}.csv`;
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            link.click();
-            
-            this.core.showToast('Data byla exportována', 'success');
-            
+            if (!sourceData) {
+                throw new Error('Data nejsou dostupná');
+            }
+
+            // Zpracuj data
+            const processedData = this.core.widgetFactory.processWidgetData(sourceData, this.currentConfig);
+
+            // Vykresli podle typu widgetu
+            switch (this.currentConfig.type) {
+                case 'metric-card':
+                    this.renderMetricCardDetail(contentDiv, processedData);
+                    break;
+                case 'line-chart':
+                    this.renderChartDetail(contentDiv, processedData, 'line');
+                    break;
+                case 'bar-chart':
+                    this.renderChartDetail(contentDiv, processedData, 'bar');
+                    break;
+                case 'pie-chart':
+                    this.renderChartDetail(contentDiv, processedData, 'pie');
+                    break;
+                case 'data-table':
+                    this.renderTableDetail(contentDiv, processedData);
+                    break;
+                default:
+                    this.renderGenericDetail(contentDiv, processedData);
+            }
+
         } catch (error) {
-            console.error('❌ Chyba při exportu:', error);
-            this.core.showToast('Chyba při exportu dat', 'error');
+            console.error('❌ Chyba při načítání detailu:', error);
+            contentDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Chyba při načítání detailu:</strong><br>
+                    ${error.message}
+                </div>
+            `;
         }
     }
 
     /**
-     * Konverze dat na CSV
+     * Načtení informací o widgetu
      */
-    convertToCSV(data) {
+    loadDetailInfo() {
+        const infoDiv = document.getElementById('detailInfo');
+        if (!infoDiv || !this.currentConfig) return;
+
+        const widgetType = this.core.widgetFactory.widgetTypes.get(this.currentConfig.type);
+        const sourceConfig = this.core.dataSources.get(this.currentConfig.dataSource);
+
+        infoDiv.innerHTML = `
+            <div class="mb-3">
+                <label class="form-label fw-bold">Typ widgetu:</label>
+                <div class="text-muted">
+                    <i class="${widgetType?.icon || 'fas fa-question'} me-2"></i>
+                    ${widgetType?.name || 'Neznámý typ'}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Zdroj dat:</label>
+                <div class="text-muted">${sourceConfig?.name || 'Neznámý zdroj'}</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Vytvořeno:</label>
+                <div class="text-muted">
+                    ${this.currentConfig.created ? 
+                        new Date(this.currentConfig.created).toLocaleString('cs-CZ') : 
+                        'Neznámo'
+                    }
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Poslední aktualizace:</label>
+                <div class="text-muted">
+                    ${this.currentConfig.lastUpdate ? 
+                        new Date(this.currentConfig.lastUpdate).toLocaleString('cs-CZ') : 
+                        'Neznámo'
+                    }
+                </div>
+            </div>
+
+            ${this.currentConfig.description ? `
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Popis:</label>
+                    <div class="text-muted">${this.currentConfig.description}</div>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * Vykreslení detailu metrické karty
+     */
+    renderMetricCardDetail(container, data) {
+        // Zde by byla implementace detailního zobrazení metriky
+        // Například histogram, trend graf, statistiky apod.
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-body text-center">
+                    <h2 class="display-4 text-primary mb-4">Detail metrické karty</h2>
+                    <p class="text-muted">Implementace detailního zobrazení metriky</p>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Vykreslení detailu grafu
+     */
+    renderChartDetail(container, data, chartType) {
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <div style="height: 400px;">
+                        <canvas id="detailChart_${this.currentWidgetId}"></canvas>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Vytvoř graf v větším rozlišení
+        setTimeout(() => {
+            const canvas = document.getElementById(`detailChart_${this.currentWidgetId}`);
+            if (canvas && window.Chart) {
+                const ctx = canvas.getContext('2d');
+                // Zde by byla implementace vytvoření grafu
+                // s více detaily než v hlavním dashboardu
+            }
+        }, 100);
+    }
+
+    /**
+     * Vykreslení detailu tabulky
+     */
+    renderTableDetail(container, data) {
         if (!Array.isArray(data) || data.length === 0) {
-            return '';
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Žádná data k zobrazení
+                </div>
+            `;
+            return;
         }
 
-        const firstRow = data[0];
-        let headers, rows;
-
-        if (typeof firstRow === 'object' && firstRow !== null) {
-            // Objekty
-            headers = Object.keys(firstRow);
-            rows = data.map(row => 
-                headers.map(header => {
-                    const value = row[header];
-                    return this.escapeCsvValue(value);
-                }).join(',')
-            );
-        } else {
-            // Primitívní hodnoty
-            headers = ['Hodnota'];
-            rows = data.map(value => this.escapeCsvValue(value));
-        }
-
-        return [headers.join(','), ...rows].join('\n');
-    }
-
-    /**
-     * Escape hodnoty pro CSV
-     */
-    escapeCsvValue(value) {
-        if (value == null) return '';
+        const columns = Object.keys(data[0]);
         
-        const str = String(value);
-        
-        // Pokud obsahuje čárky, uvozovky nebo nové řádky, zabal do uvozovek
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-            return '"' + str.replace(/"/g, '""') + '"';
-        }
-        
-        return str;
-    }
+        let tableHtml = `
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Kompletní data (${data.length} záznamů)</h6>
+                    <div>
+                        <input type="text" class="form-control form-control-sm" placeholder="Vyhledat..." 
+                               id="detailSearch" style="width: 200px;">
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    ${columns.map(col => `<th>${col}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.map(row => `
+                                    <tr>
+                                        ${columns.map(col => `<td>${row[col] || '-'}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
 
-    /**
-     * Formátování hodnot pro tabulku
-     */
-    formatTableValue(value) {
-        if (value == null) return '';
-        
-        if (typeof value === 'number') {
-            return this.core.formatNumber(value);
-        }
-        
-        if (value instanceof Date) {
-            return this.core.formatDate(value);
-        }
-        
-        return String(value);
-    }
+        container.innerHTML = tableHtml;
 
-    /**
-     * Formátování hodnot podle typu
-     */
-    formatValue(value, format) {
-        if (value == null) return '';
-        
-        switch (format) {
-            case 'currency':
-                return this.core.formatCurrency(value);
-            case 'percentage':
-                return this.core.formatNumber(value / 100, { style: 'percent' });
-            case 'number':
-            default:
-                return this.core.formatNumber(value);
-        }
-    }
-
-    /**
-     * Získání vnořené hodnoty
-     */
-    getNestedValue(obj, path) {
-        if (!path) return null;
-        return path.split('.').reduce((current, key) => {
-            return current && current[key] !== undefined ? current[key] : null;
-        }, obj);
-    }
-
-    /**
-     * Získání barvy pro graf
-     */
-    getChartColor(index) {
-        const colors = [
-            '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-        ];
-        return colors[index % colors.length];
-    }
-
-    /**
-     * Statické API metody
-     */
-    static searchDetailTable(query) {
-        const table = document.getElementById('detailTable');
-        if (!table) return;
-
-        const rows = table.querySelectorAll('tbody tr');
-        const searchText = query.toLowerCase();
-
-        rows.forEach(row => {
-            const text = row.textContent.toLowerCase();
-            row.style.display = text.includes(searchText) ? '' : 'none';
+        // Přidej vyhledávání
+        document.getElementById('detailSearch')?.addEventListener('keyup', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = container.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
         });
     }
 
-    static sortDetailTable(column) {
-        // TODO: Implementace řazení tabulky
-        console.log('Řazení podle sloupce:', column);
+    /**
+     * Vykreslení obecného detailu
+     */
+    renderGenericDetail(container, data) {
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <h5>Raw data</h5>
+                    <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow-y: auto;">
+                        ${JSON.stringify(data, null, 2)}
+                    </pre>
+                </div>
+            </div>
+        `;
     }
 
-    static exportChartImage(widgetId) {
-        const canvas = document.getElementById(`detailChart_${widgetId}`);
-        if (canvas) {
+    /**
+     * Akce na tlačítka
+     */
+
+    editCurrentWidget() {
+        this.modal.hide();
+        if (this.core.configManager) {
+            this.core.configManager.editWidget(this.currentWidgetId);
+        }
+    }
+
+    async refreshCurrentWidget() {
+        if (!this.currentWidgetId) return;
+
+        const refreshBtn = document.getElementById('refreshWidgetBtn');
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Aktualizuji...';
+        }
+
+        try {
+            await this.core.widgetFactory.updateWidget(this.currentWidgetId);
+            await this.loadDetailContent();
+            this.core.showToast('Widget byl aktualizován', 'success');
+        } catch (error) {
+            console.error('❌ Chyba při aktualizaci widgetu:', error);
+            this.core.showToast('Chyba při aktualizaci widgetu', 'error');
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Aktualizovat data';
+            }
+        }
+    }
+
+    exportCurrentWidget() {
+        try {
+            const config = {
+                id: this.currentWidgetId,
+                config: this.currentConfig,
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(config, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
             const link = document.createElement('a');
-            link.download = `chart-${widgetId}-${new Date().toISOString().slice(0,10)}.png`;
-            link.href = canvas.toDataURL();
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `widget-${this.currentWidgetId}-${new Date().toISOString().slice(0,10)}.json`;
             link.click();
+
+            this.core.showToast('Widget byl exportován', 'success');
+
+        } catch (error) {
+            console.error('❌ Chyba při exportu widgetu:', error);
+            this.core.showToast('Chyba při exportu widgetu', 'error');
         }
     }
 
-    static exportChartData(widgetId) {
-        const instance = window.DetailModal;
-        if (instance) {
-            instance.exportCurrentData();
+    deleteCurrentWidget() {
+        if (confirm(`Opravdu chcete smazat widget "${this.currentConfig.title || 'Unnamed'}"?`)) {
+            this.core.widgets.delete(this.currentWidgetId);
+            
+            const element = document.querySelector(`[data-widget-id="${this.currentWidgetId}"]`);
+            if (element) {
+                element.remove();
+            }
+
+            this.core.saveUserConfiguration();
+            this.core.checkEmptyDashboard();
+            
+            this.modal.hide();
+            this.core.showToast('Widget byl smazán', 'success');
         }
     }
 
-    static exportCurrentData() {
-        const instance = window.DetailModal;
-        if (instance) {
-            instance.exportCurrentData();
-        }
+    /**
+     * Skrytí modálu
+     */
+    hide() {
+        this.modal?.hide();
     }
 }
 
-// Export
+// Export pro modul systém
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = DetailModal;
 }
