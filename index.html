@@ -1,288 +1,97 @@
-/**
- * OPRAVENÝ INDEX.HTML - KOMPLETNÍ ŘEŠENÍ
- * Řeší problém s načítáním modulů správným způsobem
- */
 <!DOCTYPE html>
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Google Sheets Dashboard</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <!-- CSS soubory -->
-    <link href="style.css" rel="stylesheet">
-    <link href="widgets.css" rel="stylesheet">
+    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/widgets.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 
-<!-- Preloader -->
-<div id="preloader" class="d-flex justify-content-center align-items-center position-fixed w-100 h-100" style="z-index: 9999; background: rgba(248, 249, 250, 0.95); backdrop-filter: blur(5px);">
+<div id="preloader" class="d-flex justify-content-center align-items-center position-fixed w-100 h-100" style="z-index:9999;background:rgba(248,249,250,0.95);backdrop-filter:blur(5px);">
     <div class="text-center">
-        <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-            <span class="visually-hidden">Načítám...</span>
-        </div>
+        <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;"><span class="visually-hidden">Načítám...</span></div>
         <h5 class="text-primary mb-2">Inicializace dashboard...</h5>
         <p class="text-muted small">Google Sheets Dashboard</p>
     </div>
 </div>
 
-<!-- Loading Overlay -->
-<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="z-index: 1050; background: rgba(0,0,0,0.5);">
+<div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="z-index:1050;background:rgba(0,0,0,0.5);">
     <div class="d-flex justify-content-center align-items-center h-100">
         <div class="card border-0 shadow">
             <div class="card-body text-center">
-                <div class="spinner-border text-primary mb-3" role="status">
-                    <span class="visually-hidden">Načítám...</span>
-                </div>
+                <div class="spinner-border text-primary mb-3" role="status"><span class="visually-hidden">Načítám...</span></div>
                 <h6 class="mb-2">Načítám data z Google Sheets...</h6>
                 <p class="text-muted small mb-0">Připojuji se k datovým zdrojům...</p>
-                <div class="progress mt-3" style="height: 4px;">
-                    <div id="loadingProgress" class="progress-bar" role="progressbar" style="width: 0%"></div>
-                </div>
+                <div class="progress mt-3" style="height:4px;"><div id="loadingProgress" class="progress-bar" role="progressbar" style="width:0%"></div></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Main Navigation -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#">
-            <i class="fas fa-chart-line me-2"></i>Dashboard přehled
-        </a>
-        
-        <div class="navbar-nav ms-auto d-flex flex-row">
-            <span class="navbar-text me-3">
-                <i class="fas fa-clock me-1"></i>
-                <span id="lastUpdateTime">--:--</span>
-            </span>
-            <button class="btn btn-outline-light btn-sm me-2" id="loadDataBtn" title="Načíst data">
-                <i id="loadDataIcon" class="fas fa-sync-alt me-1"></i>Načíst data
-            </button>
-            <button class="btn btn-outline-light btn-sm me-2" id="configDataSources" title="Konfigurace zdrojů">
-                <i class="fas fa-database me-1"></i>Zdroje
-            </button>
-            <button class="btn btn-outline-light btn-sm me-2" id="configWidgets" title="Konfigurace widgetů">
-                <i class="fas fa-puzzle-piece me-1"></i>Widgety
-            </button>
-            <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Přepnout téma">
-                <i class="fas fa-moon"></i>
-            </button>
-        </div>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand fw-bold" href="#"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
+    <div class="navbar-nav ms-auto d-flex flex-row">
+      <span class="navbar-text me-3"><i class="fas fa-clock me-1"></i><span id="lastUpdateTime">--:--</span></span>
+      <button id="loadDataBtn" class="btn btn-outline-light btn-sm me-2"><i class="fas fa-sync-alt me-1"></i>Načíst data</button>
+      <button id="configDataSources" class="btn btn-outline-light btn-sm me-2"><i class="fas fa-database me-1"></i>Zdroje</button>
+      <button id="configWidgets" class="btn btn-outline-light btn-sm me-2"><i class="fas fa-puzzle-piece me-1"></i>Widgety</button>
+      <button id="themeToggle" class="btn btn-outline-light btn-sm"><i class="fas fa-moon"></i></button>
     </div>
+  </div>
 </nav>
 
-<!-- Main Content -->
 <main class="container-fluid py-4">
-    <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h1 class="h4 mb-1 text-primary">
-                                <i class="fas fa-chart-line me-2"></i>Dashboard přehled
-                            </h1>
-                            <p class="text-muted mb-0">Real-time data z Google Sheets</p>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div class="d-flex justify-content-end align-items-center">
-                                <span class="badge bg-success me-2">
-                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Online
-                                </span>
-                                <small class="text-muted">
-                                    Poslední aktualizace: <span id="lastUpdate">--:--</span>
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div><h1 class="h4 text-primary mb-0"><i class="fas fa-chart-line me-2"></i>Dashboard přehled</h1><p class="text-muted mb-0">Real-time data z Google Sheets</p></div>
+          <div class="text-end"><span class="badge bg-success me-2"><i class="fas fa-circle" style="font-size:0.5rem;"></i>Online</span><small class="text-muted">Poslední aktualizace: <span id="lastUpdate">--:--</span></small></div>
         </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Dashboard Grid -->
-    <div id="dashboardGrid" class="row">
-        <!-- Widgety budou dynamicky vkládány zde -->
-    </div>
+  <div id="dashboardGrid" class="row"></div>
+  <div id="emptyDashboard" class="text-center py-5" style="display:none;"><div class="card border-0 shadow-sm"><div class="card-body py-5"><i class="fas fa-chart-line fa-3x text-muted mb-3"></i><h4 class="text-muted">Dashboard je prázdný</h4><p class="text-muted mb-4">Přidejte datové zdroje a widgety</p><button id="addDataSourceBtn" class="btn btn-primary me-2"><i class="fas fa-database me-2"></i>Přidat zdroj</button><button id="addWidgetBtn" class="btn btn-outline-primary"><i class="fas fa-puzzle-piece me-2"></i>Přidat widget</button></div></div></div>
 
-    <!-- Empty Dashboard State -->
-    <div id="emptyDashboard" class="text-center py-5" style="display: none;">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body py-5">
-                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-                <h4 class="text-muted">Dashboard je prázdný</h4>
-                <p class="text-muted mb-4">Přidejte datové zdroje a widgety pro zobrazení dat</p>
-                <button class="btn btn-primary me-2" id="addDataSourceBtn">
-                    <i class="fas fa-database me-2"></i>Přidat datový zdroj
-                </button>
-                <button class="btn btn-outline-primary" id="addWidgetBtn">
-                    <i class="fas fa-puzzle-piece me-2"></i>Přidat widget
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Loading Status -->
-    <div id="loadingStatus" class="text-center text-muted" style="display: none;">
-        Inicializuji...
-    </div>
+  <div id="loadingStatus" class="text-center text-muted" style="display:none;">Inicializuji...</div>
 </main>
 
-<!-- Toast Container -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <!-- Toasts budou dynamicky přidávány -->
-</div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
-<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- OPRAVENÉ NAČÍTÁNÍ MODULŮ - S GLOBÁLNÍM VYSTAVENÍM -->
 <script>
-// KROK 1: Načti všechny JavaScript soubory a vystav třídy globálně
-console.log('📦 Načítám JavaScript moduly...');
-
-// Funkce pro dynamické načítání skriptů
-function loadScript(src) {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
-}
-
-// Načti moduly v pořadí
+const loadScript = src => new Promise((res, rej) => { const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
 Promise.all([
-    loadScript('data-manager.js'),
-    loadScript('config-manager.js'), 
-    loadScript('widget-factory.js'),
-    loadScript('detail-modal.js'),
-    loadScript('dashboard-core.js')
-]).then(() => {
-    console.log('✅ Všechny moduly načteny');
-    
-    // KROK 2: Manuálně vystav třídy do globálního scope
-    // (protože původní soubory je nevystavují)
-    
-    // Zkontroluj, které třídy jsou dostupné
-    const availableClasses = [];
-    
-    if (typeof DataManager !== 'undefined') {
-        window.DataManager = DataManager;
-        availableClasses.push('DataManager');
-    }
-    
-    if (typeof ConfigManager !== 'undefined') {
-        window.ConfigManager = ConfigManager;
-        availableClasses.push('ConfigManager');
-    }
-    
-    if (typeof WidgetFactory !== 'undefined') {
-        window.WidgetFactory = WidgetFactory;
-        availableClasses.push('WidgetFactory');
-    }
-    
-    if (typeof DetailModal !== 'undefined') {
-        window.DetailModal = DetailModal;
-        availableClasses.push('DetailModal');
-    }
-    
-    if (typeof DashboardCore !== 'undefined') {
-        window.DashboardCore = DashboardCore;
-        availableClasses.push('DashboardCore');
-    }
-    
-    console.log('🎯 Dostupné třídy:', availableClasses);
-    
-    // KROK 3: Inicializace Dashboard
-    if (availableClasses.length >= 4) { // Potřebujeme alespoň 4 hlavní třídy
-        console.log('🚀 Spouštím inicializaci Dashboard...');
-        initializeDashboard();
-    } else {
-        console.error('❌ Nedostatek modulů pro spuštění:', availableClasses);
-        showModuleError('Nepodařilo se načíst všechny potřebné moduly: ' + availableClasses.join(', '));
-    }
-    
-}).catch(error => {
-    console.error('❌ Chyba při načítání modulů:', error);
-    showModuleError('Chyba při načítání JavaScript modulů: ' + error.message);
-});
+  loadScript('assets/js/data-manager.js'),
+  loadScript('assets/js/config-manager.js'),
+  loadScript('assets/js/widget-factory.js'),
+  loadScript('assets/js/detail-modal.js'),
+  loadScript('assets/js/dashboard-core.js')
+]).then(()=>{
+  const classes=[];
+  if(window.DataManager=typeof DataManager!=='undefined' && DataManager) classes.push('DataManager');
+  if(window.ConfigManager=typeof ConfigManager!=='undefined' && ConfigManager) classes.push('ConfigManager');
+  if(window.WidgetFactory=typeof WidgetFactory!=='undefined' && WidgetFactory) classes.push('WidgetFactory');
+  if(window.DetailModal=typeof DetailModal!=='undefined' && DetailModal) classes.push('DetailModal');
+  if(window.DashboardCore=typeof DashboardCore!=='undefined' && DashboardCore) classes.push('DashboardCore');
+  if(classes.length>=4) initDashboard(); else showError('Chybějící moduly: '+classes.join(', '));
+}).catch(e=>showError('Chyba při načítání modulů: '+e.message));
 
-// KROK 4: Inicializace Dashboard aplikace
-function initializeDashboard() {
-    try {
-        console.log('📋 Inicializuji Dashboard Core...');
-        
-        // Vytvoř instanci Dashboard Core
-        window.dashboardCore = new DashboardCore();
-        
-        // Spusť inicializaci
-        window.dashboardCore.init().then(() => {
-            console.log('✅ Dashboard úspěšně spuštěn!');
-            
-            // Přidej event listeners pro prázdný dashboard
-            const addDataSourceBtn = document.getElementById('addDataSourceBtn');
-            const addWidgetBtn = document.getElementById('addWidgetBtn');
-            
-            if (addDataSourceBtn) {
-                addDataSourceBtn.addEventListener('click', () => {
-                    if (window.dashboardCore.configManager) {
-                        window.dashboardCore.configManager.openDataSourcesConfig();
-                    }
-                });
-            }
-            
-            if (addWidgetBtn) {
-                addWidgetBtn.addEventListener('click', () => {
-                    if (window.dashboardCore.configManager) {
-                        window.dashboardCore.configManager.openWidgetsConfig();
-                    }
-                });
-            }
-            
-        }).catch(error => {
-            console.error('❌ Chyba při inicializaci Dashboard:', error);
-            showModuleError('Chyba při inicializaci: ' + error.message);
-        });
-        
-    } catch (error) {
-        console.error('❌ Kritická chyba při vytváření Dashboard Core:', error);
-        showModuleError('Kritická chyba: ' + error.message);
-    }
-}
-
-// Zobrazení chyby při načítání modulů
-function showModuleError(message) {
-    const preloader = document.getElementById('preloader');
-    if (preloader) {
-        preloader.innerHTML = `
-            <div class="text-center">
-                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-                <h5 class="text-danger">Chyba při načítání aplikace</h5>
-                <p class="text-muted">${message}</p>
-                <button class="btn btn-primary" onclick="location.reload()">
-                    <i class="fas fa-refresh me-2"></i>Zkusit znovu
-                </button>
-            </div>
-        `;
-    }
-}
-
-// Debug informace
-console.log('📊 Dashboard Application Loading...');
-console.log('🌐 Browser:', navigator.userAgent);
-console.log('📅 Date:', new Date().toISOString());
+function initDashboard(){ try{ const app=new DashboardCore(); app.init(); }catch(e){ showError(e.message);} }
+function showError(msg){ const p=document.getElementById('preloader'); if(p) p.innerHTML=`<div class="text-center"><i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i><h5 class="text-danger">Chyba</h5><p class="text-muted">${msg}</p><button class="btn btn-primary" onclick="location.reload()">Zkusit znovu</button></div>`; }
 </script>
-
-</body>
-</html>
