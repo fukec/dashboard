@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modularní Google Sheets Dashboard</title>
+    
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Chart.js UMD build -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.js"></script>
     <!-- Custom CSS -->
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/css/widgets.css" rel="stylesheet">
@@ -31,6 +32,7 @@
                 <i class="fas fa-chart-pie me-2"></i>
                 Modularní Dashboard
             </a>
+            
             <div class="navbar-nav ms-auto">
                 <div class="nav-item dropdown me-3">
                     <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -45,10 +47,12 @@
                         <li><a class="dropdown-item" href="#" id="importConfig"><i class="fas fa-upload me-2"></i>Import konfigurace</a></li>
                     </ul>
                 </div>
+                
                 <button class="btn btn-success me-2" id="loadDataBtn" title="Načíst aktuální data">
                     <i class="fas fa-sync-alt me-1" id="loadDataIcon"></i>
                     Načíst data
                 </button>
+                
                 <button class="btn btn-outline-light" id="themeToggle" title="Přepnout téma">
                     <i class="fas fa-moon"></i>
                 </button>
@@ -58,6 +62,7 @@
 
     <!-- Main Content -->
     <div class="container-fluid dashboard-content">
+        <!-- Loading Indicator -->
         <div id="loadingOverlay" class="loading-overlay d-none">
             <div class="loading-content">
                 <div class="spinner-border text-primary" role="status"></div>
@@ -69,6 +74,7 @@
             </div>
         </div>
 
+        <!-- Page Header -->
         <div class="page-header">
             <div class="row align-items-center">
                 <div class="col">
@@ -84,7 +90,9 @@
             </div>
         </div>
 
+        <!-- Dashboard Grid -->
         <div id="dashboardGrid" class="dashboard-grid">
+            <!-- Widgety se zde vkládají dynamicky -->
             <div class="text-center py-5" id="emptyDashboard">
                 <i class="fas fa-puzzle-piece fa-3x text-muted mb-3"></i>
                 <h4>Žádné widgety nejsou nakonfigurovány</h4>
@@ -96,8 +104,7 @@
         </div>
     </div>
 
-    <!-- Modals (DataSource, Widget, Detail) -->
-    <!-- Data Source Modal -->
+    <!-- Data Source Configuration Modal -->
     <div class="modal fade" id="dataSourceModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -109,7 +116,9 @@
                     <div class="row">
                         <div class="col-md-4">
                             <h6>Dostupné zdroje</h6>
-                            <div id="dataSourcesList" class="list-group"></div>
+                            <div id="dataSourcesList" class="list-group">
+                                <!-- Dynamicky generovaný seznam -->
+                            </div>
                             <button class="btn btn-outline-primary btn-sm mt-2" id="addDataSourceBtn">
                                 <i class="fas fa-plus me-1"></i>Přidat zdroj
                             </button>
@@ -131,6 +140,7 @@
             </div>
         </div>
     </div>
+
     <!-- Widget Configuration Modal -->
     <div class="modal fade" id="widgetModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
@@ -143,10 +153,14 @@
                     <div class="row">
                         <div class="col-md-3">
                             <h6>Aktivní widgety</h6>
-                            <div id="activeWidgetsList" class="sortable-widgets"></div>
+                            <div id="activeWidgetsList" class="sortable-widgets">
+                                <!-- Dynamicky generovaný seznam -->
+                            </div>
                             <hr>
                             <h6>Dostupné typy</h6>
-                            <div id="widgetTypesList" class="widget-types"></div>
+                            <div id="widgetTypesList" class="widget-types">
+                                <!-- Typy widgetů -->
+                            </div>
                         </div>
                         <div class="col-md-9">
                             <div id="widgetConfigPanel">
@@ -165,6 +179,7 @@
             </div>
         </div>
     </div>
+
     <!-- Detail Modal -->
     <div class="modal fade" id="detailModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
@@ -181,32 +196,35 @@
                     </div>
                 </div>
                 <div class="modal-body">
-                    <div id="detailContent"></div>
+                    <div id="detailContent">
+                        <!-- Detailní obsah se načítá dynamicky -->
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Toast Container -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <!-- Toasty se vkládají dynamicky -->
+    </div>
 
     <!-- JavaScript Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-
+    
     <!-- Core Application Scripts -->
     <script src="assets/js/dashboard-core.js"></script>
     <script src="assets/js/data-manager.js"></script>
     <script src="assets/js/config-manager.js"></script>
     <script src="assets/js/widget-factory.js"></script>
     <script src="assets/js/detail-modal.js"></script>
-
-    <!-- Initialization Script Adjusted -->
+    
+    <!-- Initialization Script -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const app = new DashboardCore();
-            window.DashboardCore = app;
-            app.init();
+        // Initialize dashboard when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            DashboardCore.init();
         });
     </script>
 </body>
